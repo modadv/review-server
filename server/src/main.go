@@ -29,15 +29,22 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 	modelParam := r.URL.Query().Get("model")
 	versionParam := r.URL.Query().Get("version")
 
-	// 构造要发送给 WebSocket 客户端的数据
-	messageData := map[string]string{
-		"clientIP":   ip,
-		"clientPort": port,
-		"address":    addressParam,
-		"model":      modelParam,
-		"version":    versionParam,
+	// 构造具体转发数据部分，放置在 data 字段内
+	data := map[string]string{
+		"address": addressParam,
+		"model":   modelParam,
+		"version": versionParam,
 	}
-	jsonMsg, err := json.Marshal(messageData)
+
+	// 构造最终的 JSON 消息格式：
+	// protocol_id 和客户端相关信息放在顶层，数据具体内容封装在 data 字段内
+	messageWrapper := map[string]interface{}{
+		"protocol_id": 1,
+		"client_ip":   ip,
+		"client_port": port,
+		"data":        data,
+	}
+	jsonMsg, err := json.Marshal(messageWrapper)
 	if err != nil {
 		log.Printf("JSON marshaling error: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)

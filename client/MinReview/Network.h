@@ -22,7 +22,7 @@ using tcp = asio::ip::tcp;
  * 修改后的协议处理回调类型：除了 protocol_id 与 data 外，还增加了 host 字段，
  * 用于标识数据来源的服务器地址。
  */
-using ProtocolHandler = std::function<void(const std::string& host, int protocol_id, const std::string& data)>;
+using ProtocolHandler = std::function<void(const std::string& host, int protocol_id, const json::object& data)>;
 
 //
 // 协议处理注册与调度类
@@ -35,7 +35,7 @@ public:
 	}
 
 	// 调用对应协议号的处理函数，传入 host、protocol_id 与 data
-	void handleProtocol(const std::string& host, int protocol_id, const std::string& data) {
+	void handleProtocol(const std::string& host, int protocol_id, const json::object& data) {
 		auto it = handlers_.find(protocol_id);
 		if (it != handlers_.end()) {
 			it->second(host, protocol_id, data);
@@ -107,9 +107,9 @@ private:
 				auto parsed_json = json::parse(received_data);
 				auto& obj = parsed_json.as_object();
 				int protocol_id = obj.at("protocol_id").as_int64();
-				auto& data = obj.at("data").as_string();
+				auto& data = obj.at("data").as_object();
 				// 将接收到的数据（附带服务端 host 信息）传递给统一的数据处理入口
-				registry_.handleProtocol(host_, protocol_id, std::string(data.data(), data.size()));
+				registry_.handleProtocol(host_, protocol_id, data);
 			}
 			catch (const std::exception& e) {
 				std::cerr << "Error parsing received data: " << e.what() << std::endl;

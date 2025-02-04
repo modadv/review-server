@@ -20,14 +20,14 @@ int main() {
     // 实例化协议处理注册中心，并注册协议处理回调函数
     ProtocolHandlerRegistry registry;
 
-    registry.registerHandler(1, [](const std::string& host, int protocol_id, const std::string& data) {
+    registry.registerHandler(1, [](const std::string& host, int protocol_id, const json::object& data) {
         std::cout << "Handler for protocol " << protocol_id << " from " << host
-            << " received data: " << data << std::endl;
+            << " received data: " << data.at("address").as_string() << std::endl;
         });
 
-    registry.registerHandler(2, [](const std::string& host, int protocol_id, const std::string& data) {
+    registry.registerHandler(2, [](const std::string& host, int protocol_id, const json::object& data) {
         std::cout << "Handler for protocol " << protocol_id << " from " << host
-            << " received data: " << data << std::endl;
+            << " received data: " << data.at("version").as_string() << std::endl;
         });
 
     // 创建 WebSocket 客户端管理器，管理与不同服务端的连接
