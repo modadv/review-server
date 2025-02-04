@@ -40,8 +40,6 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 	// protocol_id 和客户端相关信息放在顶层，数据具体内容封装在 data 字段内
 	messageWrapper := map[string]interface{}{
 		"protocol_id": 1,
-		"client_ip":   ip,
-		"client_port": port,
 		"data":        data,
 	}
 	jsonMsg, err := json.Marshal(messageWrapper)

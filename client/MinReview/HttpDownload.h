@@ -190,17 +190,20 @@ public:
 //
 // 示例：调用 HttpDownloader::download 下载文件
 //
+// 
+// void testHTTPDownload() {
+//try {
+//    std::string host = "127.0.0.1";
+//    std::string port = "80";
+//    std::string target = "/run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/report.xml";
+//    fs::path downloaded_file = HttpDownloader::download(host, target, port);
+//    std::cout << "Download successfully, file save at: " << downloaded_file << "\n";
+//}
+//catch (const std::exception& e) {
+//    std::cerr << "Error: " << e.what() << "\n";
+//}
+//}
 //int main() {
-//    try {
-//        std::string host = "localhost";
-//        std::string port = "80";
-//        std::string target = "run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/report.xml";
-//        fs::path downloaded_file = HttpDownloader::download(host, target, port);
-//        std::cout << "文件下载成功，保存在: " << downloaded_file << "\n";
-//    }
-//    catch (const std::exception& e) {
-//        std::cerr << "错误: " << e.what() << "\n";
-//        return EXIT_FAILURE;
-//    }
+//    testHTTPDownload();
 //    return EXIT_SUCCESS;
 //}
