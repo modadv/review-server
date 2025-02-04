@@ -151,46 +151,85 @@ type Client struct {
 	id string
 }
 
-// readPump 负责从客户端连接不断读取消息
+// readPump 负责从客户端连接不断读取消息，并按照协议格式处理
 func (c *Client) readPump() {
 	defer func() {
+		// 发生异常或退出时注销该客户端，并关闭连接
 		c.hub.unregister <- c
 		c.conn.Close()
 	}()
+
+	// 限制收到的消息大小，设置读超时、心跳检测处理
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error {
 		c.conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
+
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
-			// 正常关闭时不打印错误日志
+			// 如果非正常关闭则打日志
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("Unexpected close error from %s: %v", c.id, err)
 			}
 			break
 		}
 
-		// 尝试解析 JSON 数据，并自动补充 host 字段
+		// 尝试解析接收到的 JSON 数据，要求格式如下：
+		// {
+		//    "protocol_id": number,
+		//    "data": { ... }
+		// }
 		var msgData map[string]interface{}
 		if err := json.Unmarshal(message, &msgData); err != nil {
-			log.Printf("Error parsing message from %s: %v", c.id, err)
+			log.Printf("Error parsing JSON message from %s: %v", c.id, err)
 			continue
 		}
-		// 如果消息中没有 host 字段，则写入客户端的标识（远程地址）
-		if _, ok := msgData["host"]; !ok {
-			msgData["host"] = c.id
-		}
-		// 重新编码成 JSON 字符串用于转发
-		newMessage, err := json.Marshal(msgData)
-		if err != nil {
-			log.Printf("Error encoding message from %s: %v", c.id, err)
+
+		// 检查是否包含 protocol_id 字段
+		protocol, ok := msgData["protocol_id"]
+		if !ok {
+			log.Printf("Received message missing protocol_id from %s", c.id)
 			continue
 		}
-		log.Printf("Received from %s: %s", c.id, newMessage)
-		c.hub.broadcast <- newMessage
+		// 由于 JSON 数字默认解析为 float64
+		protocolID, ok := protocol.(float64)
+		if !ok {
+			log.Printf("Invalid protocol_id type in message from %s", c.id)
+			continue
+		}
+
+		// 检查是否包含 data 字段
+		dataField, ok := msgData["data"]
+		if !ok {
+			log.Printf("Received message missing data field from %s", c.id)
+			continue
+		}
+		data := make(map[string]interface{})
+		data["msg"] = dataField.(string) + " # Review Finished"
+		// 根据 protocol_id 选择处理方式
+		switch int(protocolID) {
+		case 1:
+			// 对于 protocol_id = 1，采用 ECHO 功能：
+			// 将收到的 data 重新封装成相同的 JSON 格式回复给客户端
+			response := map[string]interface{}{ // 回复客户端的2号协议
+				"protocol_id": 2,
+				"data":        data,
+			}
+			responseJSON, err := json.Marshal(response)
+			if err != nil {
+				log.Printf("Error encoding echo response for %s: %v", c.id, err)
+				continue
+			}
+			log.Printf("Echoing message to %s: %s", c.id, responseJSON)
+			// 将回复消息写入客户端的发送 channel，由 writePump 负责实际调用系统网络接口发送数据
+			c.send <- responseJSON
+
+		default:
+			log.Printf("Unsupported protocol_id %v from %s", protocolID, c.id)
+		}
 	}
 }
 

@@ -27,7 +27,7 @@ int main() {
 
     registry.registerHandler(2, [](const std::string& host, int protocol_id, const json::object& data) {
         std::cout << "Handler for protocol " << protocol_id << " from " << host
-            << " received data: " << data.at("version").as_string() << std::endl;
+            << " received data: " << data.at("msg").as_string() << std::endl;
         });
 
     // 创建 WebSocket 客户端管理器，管理与不同服务端的连接
@@ -45,7 +45,7 @@ int main() {
             // 服务器收到后可能会结合客户端标记的 host 信息进行处理
             object msg;
             msg["protocol_id"] = 1;
-            msg["data"] = "Hello, server! This is a test message.";
+            msg["data"] = "Hello, server! This is a Review message.";
 
             // 通过指定 host 与 port ，选择向目标服务器发送数据
             clientManager.sendMessage("127.0.0.1", "8194", msg);
