@@ -6,7 +6,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
 # Add source to this project's executable.
-add_executable (MinReview "MinReview.cpp" "MinReview.h" "Network.h" "GlobalConfig.h" "HttpDownload.h")
+add_executable (MinReview
+"MinReview.cpp"
+"MinReview.h"
+"Network.h"
+"GlobalConfig.h"
+"HttpDownload.h"
+"IDataHandler.h"
+"XmlToJsonHandler.h"
+)
 
 find_package(Boost 1.87.0 REQUIRED COMPONENTS system filesystem json log)
 find_package(OpenSSL REQUIRED)

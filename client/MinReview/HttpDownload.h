@@ -8,6 +8,8 @@
 #include <stdexcept>
 #include <string>
 
+#include <XmlToJsonHandler.h>
+
 // 必须包含，以获得 boost::asio::buffer_cast 和 buffer_size 的定义
 #include <boost/asio/buffer.hpp>
 
@@ -43,6 +45,7 @@ public:
         const std::string& target,
         const std::string& port = "80")
     {
+        std::unique_ptr<IDataHandler> data_handler;
         // 根据 URL 路径构造本地保存路径：
         // 例如 target "/path/to/file" ——> 当前工作目录/.cache/path/to/file
         fs::path targetPath(target);
@@ -145,6 +148,8 @@ public:
                 if (res.find(http::field::content_length) != res.end()) {
                     content_length = std::stoull(std::string(res[http::field::content_length]));
                 }
+
+                data_handler = std::make_unique<XmlToJsonDataHandler>(output_file.replace_extension(".json").string());
             }
 
             // 当 header 解析完成后，从 parser 得到的 body 中提取数据并写入文件
@@ -157,13 +162,14 @@ public:
                         // 通过 boost::asio::buffer_cast 获取数据指针和大小
                         const char* data_ptr = static_cast<const char*>(buffer_elem.data());
                         std::size_t chunk_size = boost::asio::buffer_size(buffer_elem);
+                        data_handler->handleData(static_cast<const char*>(buffer_elem.data()), chunk_size);
                         file.write(data_ptr, chunk_size);
                         bytes_downloaded += chunk_size;
 
                         // 可选：输出下载进度（若存在 Content-Length）
                         if (content_length > 0) {
                             double progress = (static_cast<double>(bytes_downloaded) / content_length) * 100.0;
-                            std::cout << "\rDownload progress:" << progress << "%" << std::flush;
+                            std::cout << "\rDownload progress:" << progress << "%\n" << std::flush;
                         }
                     }
                     body.consume(body.size());
@@ -174,6 +180,11 @@ public:
             if (parser.is_done())
                 break;
         }
+
+        if (data_handler) {
+            data_handler->finalize();
+        }
+
         file.close();
 
         // 关闭连接，忽略未连接错误
