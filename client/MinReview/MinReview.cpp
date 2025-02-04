@@ -2,6 +2,7 @@
 //
 
 #include "MinReview.h"
+#include "LoadReport.h"
 #include <iostream>
 #include <chrono>
 #include <boost/asio.hpp>
