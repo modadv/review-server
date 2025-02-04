@@ -11,7 +11,7 @@ add_executable (MinReview
 "MinReview.h"
 "Network.h"
 "GlobalConfig.h"
-"HttpDownload.h"
+"XmlDownload.h"
 "IDataHandler.h"
 "XmlToJsonHandler.h"
 )

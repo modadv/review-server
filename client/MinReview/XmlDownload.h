@@ -25,7 +25,7 @@ namespace ip = asio::ip;
 namespace fs = std::filesystem;
 
 /*
-  HttpDownloader 封装了 HTTP 下载文件的接口：
+  XmlDownloader 封装了 HTTP 下载文件的接口：
     - download(host, target[, port]) 用于从指定 host 与 target 下载文件，
       保存至当前工作目录下的 ".cache/..." 目录结构中；
     - 当本地已有缓存文件时，会自动采用续传模式（使用 Range 请求）；
@@ -33,7 +33,7 @@ namespace fs = std::filesystem;
       逐步提交给 HTTP response_parser 解析并从 dynamic_body 中提取数据写入文件；
     - 对连接和读写均设置超时（30 秒），以应对网络环境较差的情况。
 */
-class HttpDownloader {
+class XmlDownloader {
 public:
     // 下载文件接口：
     //   host   : 服务器主机名（例如 "www.example.com"）
@@ -202,7 +202,7 @@ public:
 };
 
 //
-// 示例：调用 HttpDownloader::download 下载文件
+// 示例：调用 XmlDownloader::download 下载文件
 //
 // 
 // void testHTTPDownload() {
@@ -210,7 +210,7 @@ public:
 //    std::string host = "127.0.0.1";
 //    std::string port = "80";
 //    std::string target = "/run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/report.xml";
-//    fs::path downloaded_file = HttpDownloader::download(host, target, port);
+//    fs::path downloaded_file = XmlDownloader::download(host, target, port);
 //    std::cout << "Download successfully, file save at: " << downloaded_file << "\n";
 //}
 //catch (const std::exception& e) {
