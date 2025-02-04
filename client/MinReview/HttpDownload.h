@@ -45,7 +45,7 @@ public:
         const std::string& target,
         const std::string& port = "80")
     {
-        std::unique_ptr<IDataHandler> data_handler;
+        std::unique_ptr<IDataHandler> data_handler = nullptr;
         // 根据 URL 路径构造本地保存路径：
         // 例如 target "/path/to/file" ——> 当前工作目录/.cache/path/to/file
         fs::path targetPath(target);
@@ -148,8 +148,9 @@ public:
                 if (res.find(http::field::content_length) != res.end()) {
                     content_length = std::stoull(std::string(res[http::field::content_length]));
                 }
-
-                data_handler = std::make_unique<XmlToJsonDataHandler>(output_file.replace_extension(".json").string());
+                if (existing_file_size == 0) {
+                    data_handler = std::make_unique<XmlToJsonDataHandler>(output_file.replace_extension(".json").string());
+                }
             }
 
             // 当 header 解析完成后，从 parser 得到的 body 中提取数据并写入文件
@@ -162,7 +163,9 @@ public:
                         // 通过 boost::asio::buffer_cast 获取数据指针和大小
                         const char* data_ptr = static_cast<const char*>(buffer_elem.data());
                         std::size_t chunk_size = boost::asio::buffer_size(buffer_elem);
-                        data_handler->handleData(static_cast<const char*>(buffer_elem.data()), chunk_size);
+                        if (data_handler) {
+                            data_handler->handleData(static_cast<const char*>(buffer_elem.data()), chunk_size);
+                        }
                         file.write(data_ptr, chunk_size);
                         bytes_downloaded += chunk_size;
 
