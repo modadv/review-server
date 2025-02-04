@@ -48,9 +48,16 @@ public:
         fs::path targetPath(target);
         if (targetPath.is_absolute())
             targetPath = targetPath.relative_path();
+
+        std::string strTargetPath = targetPath.string();
+        if (!strTargetPath.empty() && (strTargetPath.front() == '/' || strTargetPath.front() == '\\')) {
+            strTargetPath.erase(0, 1);
+            targetPath = fs::path(strTargetPath);
+        }
+
         fs::path output_file = fs::current_path() / ".cache" / targetPath;
         fs::create_directories(output_file.parent_path());
-        std::cout << "将文件保存到: " << output_file << "\n";
+        std::cout << "Save file at: " << output_file << "\n";
 
         // 判断是否存在部分下载，若存在则采用续传
         std::uintmax_t existing_file_size = 0;
@@ -58,13 +65,13 @@ public:
         if (fs::exists(output_file)) {
             existing_file_size = fs::file_size(output_file);
             if (existing_file_size > 0) {
-                std::cout << "检测到部分文件 (" << existing_file_size
-                    << " bytes)，尝试续传...\n";
+                std::cout << "Detected partial file(" << existing_file_size
+                    << " bytes), try to continue download...\n";
                 resume = true;
             }
         }
         else {
-            std::cout << "未检测到本地缓存文件，进行全量下载...\n";
+            std::cout << "Had not detect partial file, download completely...\n";
         }
 
         // 创建 io_context、解析器与 TCP 流对象，并设置超时（30秒）
@@ -100,7 +107,7 @@ public:
         // 打开文件，续传时采用追加模式，否则采用覆盖模式
         std::ofstream file(output_file, std::ios::binary | std::ios::app);
         if (!file)
-            throw std::runtime_error("无法打开输出文件: " + output_file.string());
+            throw std::runtime_error("Cannot open output file " + output_file.string());
 
         // 主循环：不断从 socket 读取数据，提交给 parser，再写入文件
         for (;;) {
@@ -130,9 +137,9 @@ public:
 
                 // 续传请求，状态码应为 206；否则为 200
                 if (resume && res.result() != http::status::partial_content)
-                    throw std::runtime_error("续传失败, 服务器返回状态码: " + std::to_string(res.result_int()));
+                    throw std::runtime_error("Continue download error, server response code:" + std::to_string(res.result_int()));
                 else if (!resume && res.result() != http::status::ok)
-                    throw std::runtime_error("下载失败, 服务器返回状态码: " + std::to_string(res.result_int()));
+                    throw std::runtime_error("Download failed, server response code:" + std::to_string(res.result_int()));
 
                 // 尝试解析 Content-Length（如果存在）
                 if (res.find(http::field::content_length) != res.end()) {
@@ -156,7 +163,7 @@ public:
                         // 可选：输出下载进度（若存在 Content-Length）
                         if (content_length > 0) {
                             double progress = (static_cast<double>(bytes_downloaded) / content_length) * 100.0;
-                            std::cout << "\r下载进度: " << progress << "%" << std::flush;
+                            std::cout << "\rDownload progress:" << progress << "%" << std::flush;
                         }
                     }
                     body.consume(body.size());
@@ -175,7 +182,7 @@ public:
         if (shutdown_ec && shutdown_ec != beast::errc::not_connected)
             throw beast::system_error{ shutdown_ec };
 
-        std::cout << "\n下载完成，文件保存在: " << output_file << "\n";
+        std::cout << "\nDownload Successfully, save file at:" << output_file << "\n";
         return output_file;
     }
 };
@@ -185,9 +192,9 @@ public:
 //
 //int main() {
 //    try {
-//        std::string host = "www.example.com";
+//        std::string host = "localhost";
 //        std::string port = "80";
-//        std::string target = "/path/to/file";
+//        std::string target = "run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/report.xml";
 //        fs::path downloaded_file = HttpDownloader::download(host, target, port);
 //        std::cout << "文件下载成功，保存在: " << downloaded_file << "\n";
 //    }

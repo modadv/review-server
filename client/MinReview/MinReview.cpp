@@ -1,20 +1,37 @@
 ﻿// MinReview.cpp : Defines the entry point for the application.
 //
 
-#include "MinReview.h"
-#include "LoadReport.h"
 #include <iostream>
 #include <chrono>
 #include <boost/asio.hpp>
 #include <boost/json.hpp>
 // 假设之前实现的代码保存在 WebSocketClientManager.hpp 中
+
 #include "Network.h"
+#include "MinReview.h"
+#include "HttpDownload.h"
+
 using namespace std;
 using boost::asio::io_context;
 using boost::asio::steady_timer;
 using boost::json::object;
 using namespace std::chrono_literals;
+
+void testHTTPDownload() {
+    try {
+        std::string host = "127.0.0.1";
+        std::string port = "80";
+        std::string target = "/run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/report.xml";
+        fs::path downloaded_file = HttpDownloader::download(host, target, port);
+        std::cout << "Download successfully, file save at: " << downloaded_file << "\n";
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << "\n";
+    }
+}
+
 int main() {
+    testHTTPDownload();
     // 创建 io_context 对象用于异步 IO
     io_context ioc;
 
