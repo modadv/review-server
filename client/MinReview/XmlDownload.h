@@ -74,7 +74,7 @@ public:
             }
         }
         else {
-            std::cout << "Had not detect partial file, download completely...\n";
+            std::cout << "Had not detect partial file, download whole file...\n";
         }
 
         // 创建 io_context、解析器与 TCP 流对象，并设置超时（30秒）

@@ -5,6 +5,9 @@
 #include <cstdio>
 #include <stdexcept>
 #include <utility>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 using namespace std;
 
@@ -48,15 +51,26 @@ public:
     }
 
     // 添加下载任务——url 为下载地址，filename 为保存的本地文件路径
-    bool addDownload(const string &url, const string &filename) {
+    bool addDownload(const string &host, const string &filename) {
         CURL *easy = curl_easy_init();
         if (!easy) {
-            cerr << "curl_easy_init failed for url: " << url << endl;
+            cerr << "curl_easy_init failed for host: " << host << endl;
             return false;
         }
+        fs::path target_path(filename);
+        if (target_path.is_absolute()) {
+            target_path = target_path.relative_path();
+        }
 
-        // 打开文件用于写入下载数据
-        FILE *fp = fopen(filename.c_str(), "wb");
+        std::string str_target_path = target_path.string();
+        if (!str_target_path.empty() && (str_target_path.front() == '/' || str_target_path.front() == '\\')) {
+            str_target_path.erase(0, 1);
+            target_path = fs::path(str_target_path);
+        }
+        fs::path output_file = fs::current_path() / ".cache" / target_path;
+        fs::create_directories(output_file.parent_path());
+
+        FILE *fp = fopen(output_file.string().c_str(), "wb");
         if (!fp) {
             cerr << "Cannot open file " << filename << " for writing" << endl;
             curl_easy_cleanup(easy);
@@ -64,9 +78,9 @@ public:
         }
         fileHandles.push_back(fp);
 
-        // 设置 URL、回调函数等参数
+        std::string url = host + "/" + target_path.string();
         curl_easy_setopt(easy, CURLOPT_URL, url.c_str());
-        // 若目标 URL 发起重定向，则跟随重定向
+        // 若目标 HOST 发起重定向，则跟随重定向
         curl_easy_setopt(easy, CURLOPT_FOLLOWLOCATION, 1L);
         // 设置回调函数，在接收到数据时将其写入文件
         curl_easy_setopt(easy, CURLOPT_WRITEFUNCTION, HTTPDownloader::writeData);
@@ -113,32 +127,33 @@ private:
     }
 };
 
-int main() {
-    try {
-        HTTPDownloader downloader;
-
-        // 示例下载任务列表，你可以根据需要替换成实际的下载链接及保存路径
-        vector<pair<string, string>> downloads = {
-            {"http://example.com/file1.jpg", "file1.jpg"},
-            {"http://example.com/file2.jpg", "file2.jpg"},
-            {"http://example.com/file3.jpg", "file3.jpg"}
-            // 如果需要下载大量文件，可继续增加任务，
-            // 同时也可以考虑设置最大并发数，完成一个任务后再添加新的任务到 multi handle 中
-        };
-
-        // 添加下载任务
-        for (const auto &item : downloads) {
-            if (!downloader.addDownload(item.first, item.second)) {
-                cerr << "Failed to add download: " << item.first << endl;
-            }
-        }
-
-        // 执行所有下载任务
-        downloader.processDownloads();
-        cout << "所有下载任务完成!" << endl;
-    } catch (const exception &ex) {
-        cerr << "Exception: " << ex.what() << endl;
-    }
-
-    return 0;
-}
+//int main() {
+//try {
+//    HTTPDownloader downloader;
+//
+//    // 示例下载任务列表，你可以根据需要替换成实际的下载链接及保存路径
+//    vector<pair<string, string>> downloads = {
+//        {"http://localhost", "/run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/images/ng/Other/0/COMP1119_1119.png"},
+//        {"http://localhost", "/run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/images/ng/Other/0/COMP1119_1119.png"},
+//        {"http://localhost", "/run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/images/ng/Other/0/COMP1119_1119.png"},
+//        // 如果需要下载大量文件，可继续增加任务，
+//        // 同时也可以考虑设置最大并发数，完成一个任务后再添加新的任务到 multi handle 中
+//    };
+//
+//    // 添加下载任务
+//    for (const auto& item : downloads) {
+//        if (!downloader.addDownload(item.first, item.second)) {
+//            cerr << "Failed to add download: " << item.first << endl;
+//        }
+//    }
+//
+//    // 执行所有下载任务
+//    downloader.processDownloads();
+//    cout << "All tasks download finished." << endl;
+//}
+//catch (const exception& ex) {
+//    cerr << "Exception: " << ex.what() << endl;
+//}
+//
+//    return 0;
+//}

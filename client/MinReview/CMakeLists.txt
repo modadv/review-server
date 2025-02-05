@@ -14,15 +14,20 @@ add_executable (MinReview
 "XmlDownload.h"
 "IDataHandler.h"
 "XmlToJsonHandler.h"
+"HttpDownload.h"
 )
 
-find_package(Boost 1.87.0 REQUIRED COMPONENTS system filesystem json log)
-find_package(OpenSSL REQUIRED)
+set(CURL_INCLUDE_DIR $ENV{CURL_INCLUDE_DIR})
+set(CURL_LIBRARY $ENV{CURL_LIBRARY})
 
 set(EXPAT_ROOT $ENV{EXPAT_ROOT})
 set(EXPAT_INCLUDE_DIR ${EXPAT_ROOT}/include)
 set(EXPAT_LIBRARY ${EXPAT_ROOT}/lib/libexpatd.lib)
 set(EXPAT_DLL_PATH ${EXPAT_ROOT}/bin/libexpatd.dll)
+
+find_package(Boost 1.87.0 REQUIRED COMPONENTS system filesystem json log)
+find_package(OpenSSL REQUIRED)
+find_package(CURL REQUIRED)
 
 message(STATUS "Include Dir: ${CMAKE_CURRENT_SOURCE_DIR}/MinReview")
 
@@ -30,6 +35,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     ${PROJECT_SOURCE_DIR}/MinReview
     ${Boost_INCLUDE_DIRS}
     ${EXPAT_INCLUDE_DIR}
+    ${CURL_INCLUDE_DIR}
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -37,6 +43,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     OpenSSL::Crypto
     ${Boost_LIBRARIES}
     ${EXPAT_LIBRARY}
+    ${CURL_LIBRARIE}
 )
 
 # TODO: Add tests and install targets if needed.

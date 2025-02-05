@@ -8,6 +8,7 @@
 #include <boost/json.hpp>
 
 #include <IDataHandler.h>
+#include <HttpDownload.h>
 
 class XmlToJsonDataHandler : public IDataHandler {
 public:

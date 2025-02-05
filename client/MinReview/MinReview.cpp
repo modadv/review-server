@@ -17,7 +17,7 @@ using boost::asio::steady_timer;
 using boost::json::object;
 using namespace std::chrono_literals;
 
-void testHTTPDownload() {
+void testXmlDownload() {
     try {
         std::string host = "127.0.0.1";
         std::string port = "80";
@@ -27,6 +27,33 @@ void testHTTPDownload() {
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << "\n";
+    }
+}
+
+void testHttpDownload() {
+    try {
+        HTTPDownloader downloader;
+
+        // 示例下载任务列表，你可以根据需要替换成实际的下载链接及保存路径
+        vector<pair<string, string>> downloads = {
+            {"http://localhost", "/run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/images/ng/Other/0/COMP1119_1119.png"},
+            // 如果需要下载大量文件，可继续增加任务，
+            // 同时也可以考虑设置最大并发数，完成一个任务后再添加新的任务到 multi handle 中
+        };
+
+        // 添加下载任务
+        for (const auto& item : downloads) {
+            if (!downloader.addDownload(item.first, item.second)) {
+                cerr << "Failed to add download: " << item.first << endl;
+            }
+        }
+
+        // 执行所有下载任务
+        downloader.processDownloads();
+        cout << "All tasks download finished." << endl;
+    }
+    catch (const exception& ex) {
+        cerr << "Exception: " << ex.what() << endl;
     }
 }
 
@@ -72,7 +99,8 @@ void runClient() {
 }
 
 int main() {
-    testHTTPDownload();
+    testHttpDownload();
+    // testXmlDownload();
     // runClient();
     return 0;
 }
