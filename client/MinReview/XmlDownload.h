@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 
+#include <Utils.h>
 #include <XmlToJsonHandler.h>
 
 // 必须包含，以获得 boost::asio::buffer_cast 和 buffer_size 的定义
@@ -48,19 +49,11 @@ public:
         std::unique_ptr<IDataHandler> data_handler = nullptr;
         // 根据 URL 路径构造本地保存路径：
         // 例如 target "/path/to/file" ——> 当前工作目录/.cache/path/to/file
-        fs::path targetPath(target);
-        if (targetPath.is_absolute())
-            targetPath = targetPath.relative_path();
-
-        std::string strTargetPath = targetPath.string();
-        if (!strTargetPath.empty() && (strTargetPath.front() == '/' || strTargetPath.front() == '\\')) {
-            strTargetPath.erase(0, 1);
-            targetPath = fs::path(strTargetPath);
-        }
-
-        fs::path output_file = fs::current_path() / ".cache" / targetPath;
-        fs::create_directories(output_file.parent_path());
+        std::string url = utils::joinHttpUrl(host, target);
+        fs::path output_file = utils::urlToFilePath(url);
         std::cout << "Save file at: " << output_file << "\n";
+
+        fs::create_directories(output_file.parent_path());
 
         // 判断是否存在部分下载，若存在则采用续传
         std::uintmax_t existing_file_size = 0;

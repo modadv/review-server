@@ -9,6 +9,8 @@
 #include <boost/asio/thread_pool.hpp>
 #include <boost/asio/post.hpp>
 
+#include <Utils.h>
+
 // HTTPDownloader 下载模块实现
 class HTTPDownloader {
 public:
@@ -71,45 +73,13 @@ private:
         }
     }
 
-    // 根据 URL 构建本地缓存文件完整路径
-    // 例如：URL "http://example.com/a/b/c/d" 将被保存到 ".cache/example.com/a/b/c/d"
-    std::filesystem::path urlToFilePath(const std::string& url) {
-        std::string stripped = url;
-        // 去掉协议头 "http://" 或 "https://"
-        if (stripped.rfind("http://", 0) == 0) {
-            stripped = stripped.substr(7);
-        }
-        else if (stripped.rfind("https://", 0) == 0) {
-            stripped = stripped.substr(8);
-        }
-
-        // 分离主机名和路径部分
-        size_t pos = stripped.find('/');
-        std::string host;
-        std::string pathPart;
-        if (pos != std::string::npos) {
-            host = stripped.substr(0, pos);
-            pathPart = stripped.substr(pos);  // 包含初始 '/'
-        }
-        else {
-            host = stripped;
-            pathPart = "/index.html";  // 若没有路径，默认文件名
-        }
-
-        // 拼接文件路径：当前运行目录/.cache/host/后续路径
-        std::filesystem::path filePath = std::filesystem::current_path() / ".cache" / host;
-        // 使用 relative_path 去除 pathPart 开头的 '/'（确保路径拼接正确）
-        filePath /= std::filesystem::path(pathPart).relative_path();
-        return filePath;
-    }
-
     // 真正执行下载任务的函数，由线程池中的线程调用
     void downloadTask(const std::string& url, DownloadCallback callback) {
         bool success = false;
         std::string filePathStr;
         do {
             // 计算本地缓存文件完整路径
-            std::filesystem::path localFilePath = urlToFilePath(url);
+            std::filesystem::path localFilePath = utils::urlToFilePath(url);
             filePathStr = localFilePath.string();
 
             // 确保文件所在目录存在

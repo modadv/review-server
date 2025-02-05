@@ -15,6 +15,7 @@ add_executable (MinReview
 "IDataHandler.h"
 "XmlToJsonHandler.h"
 "HttpDownload.h"
+"Utils.h"
 )
 
 set(CURL_INCLUDE_DIR $ENV{CURL_ROOT}/include)
@@ -26,7 +27,7 @@ set(EXPAT_INCLUDE_DIR ${EXPAT_ROOT}/include)
 set(EXPAT_LIBRARY ${EXPAT_ROOT}/lib/libexpatd.lib)
 set(EXPAT_DLL ${EXPAT_ROOT}/bin/libexpatd.dll)
 
-find_package(Boost 1.87.0 REQUIRED COMPONENTS system filesystem json log)
+find_package(Boost 1.87.0 REQUIRED COMPONENTS system filesystem json log url)
 find_package(OpenSSL REQUIRED)
 find_package(CURL REQUIRED)
 

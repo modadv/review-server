@@ -18,16 +18,11 @@ using boost::json::object;
 using namespace std::chrono_literals;
 
 void testXmlDownload() {
-    try {
-        std::string host = "127.0.0.1";
-        std::string port = "80";
-        std::string target = "/run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/report.xml";
-        fs::path downloaded_file = XmlDownloader::download(host, target, port);
-        std::cout << "Download successfully, file save at: " << downloaded_file << "\n";
-    }
-    catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << "\n";
-    }
+    std::string host = "127.0.0.1";
+    std::string port = "80";
+    std::string target = "/run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/report.xml";
+    fs::path downloaded_file = XmlDownloader::download(host, target, port);
+    std::cout << "Download successfully, file save at: " << downloaded_file << "\n";
 }
 
 void testHttpDownload() {
@@ -83,8 +78,8 @@ void runClient() {
 }
 
 int main() {
-    testHttpDownload();
-    // testXmlDownload();
+    // testHttpDownload();
+    testXmlDownload();
     // runClient();
     return 0;
 }
