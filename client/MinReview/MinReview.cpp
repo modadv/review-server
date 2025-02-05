@@ -31,31 +31,15 @@ void testXmlDownload() {
 }
 
 void testHttpDownload() {
-    try {
-        HTTPDownloader downloader;
+    const std::string url = "http://localhost/run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/images/ng/Other/0/COMP1119_1119.png";
 
-        // 示例下载任务列表，你可以根据需要替换成实际的下载链接及保存路径
-        vector<pair<string, string>> downloads = {
-            {"http://localhost", "/run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/images/ng/Other/0/COMP1119_1119.png"},
-            // 如果需要下载大量文件，可继续增加任务，
-            // 同时也可以考虑设置最大并发数，完成一个任务后再添加新的任务到 multi handle 中
-        };
+    HTTPDownloader::getInstance().addDownloadTask(url, [](const std::string& url, bool success) {
+        std::cout << "Download callback: " << url << " Download: " << (success ? "Successfully" : "Failed") << std::endl;
+    });
 
-        // 添加下载任务
-        for (const auto& item : downloads) {
-            if (!downloader.addDownload(item.first, item.second)) {
-                cerr << "Failed to add download: " << item.first << endl;
-            }
-        }
-
-        // 执行所有下载任务
-        downloader.processDownloads();
-        cout << "All tasks download finished." << endl;
-    }
-    catch (const exception& ex) {
-        cerr << "Exception: " << ex.what() << endl;
-    }
+    HTTPDownloader::getInstance().waitForTasks();
 }
+
 
 void runClient() {
     // 创建 io_context 对象用于异步 IO

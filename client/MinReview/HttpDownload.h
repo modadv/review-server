@@ -1,159 +1,202 @@
-#include <curl/curl.h>
 #include <iostream>
-#include <vector>
 #include <string>
-#include <cstdio>
-#include <stdexcept>
-#include <utility>
+#include <functional>
+#include <mutex>
+#include <unordered_set>
 #include <filesystem>
+#include <cstdio>
+#include <curl/curl.h>
+#include <boost/asio/thread_pool.hpp>
+#include <boost/asio/post.hpp>
 
-namespace fs = std::filesystem;
-
-using namespace std;
-
-/*
- * HTTPDownloader 类封装了 libcurl multi 下载逻辑，包括：
- * 1. 初始化全局 libcurl 环境和 multi handle；
- * 2. 通过 addDownload 添加单个下载任务（为指定 URL 创建 easy handle 并设置文件保存路径）；
- * 3. processDownloads 利用 curl_multi_perform 和 curl_multi_wait 让所有任务并发执行，
- *    直到所有任务完成；
- * 4. 在析构中清理 easy handle、multi handle、以及所有打开的文件。
- */
+// HTTPDownloader 下载模块实现
 class HTTPDownloader {
 public:
-    HTTPDownloader() {
-        // 初始化全局 libcurl 环境（建议在整个应用范围只调用一次）
-        if (curl_global_init(CURL_GLOBAL_DEFAULT) != CURLE_OK) {
-            throw runtime_error("curl_global_init failed");
-        }
-        // 初始化 multi handle
-        multiHandle = curl_multi_init();
-        if (!multiHandle) {
-            throw runtime_error("curl_multi_init failed");
-        }
+    // 回调函数定义：参数1为下载 URL，参数2表示下载是否成功
+    using DownloadCallback = std::function<void(const std::string&, bool)>;
+
+    // 获取单例实例
+    static HTTPDownloader& getInstance() {
+        static HTTPDownloader instance;
+        return instance;
     }
 
-    ~HTTPDownloader() {
-        // 清理所有 easy handle
-        for (auto easy : easyHandles) {
-            curl_multi_remove_handle(multiHandle, easy);
-            curl_easy_cleanup(easy);
-        }
-        // 清理 multi handle
-        curl_multi_cleanup(multiHandle);
-
-        // 关闭所有文件句柄
-        for (auto fp : fileHandles) {
-            if (fp) fclose(fp);
-        }
-        // 清理全局 libcurl 环境
-        curl_global_cleanup();
-    }
-
-    // 添加下载任务——url 为下载地址，filename 为保存的本地文件路径
-    bool addDownload(const string &host, const string &filename) {
-        CURL *easy = curl_easy_init();
-        if (!easy) {
-            cerr << "curl_easy_init failed for host: " << host << endl;
-            return false;
-        }
-        fs::path target_path(filename);
-        if (target_path.is_absolute()) {
-            target_path = target_path.relative_path();
-        }
-
-        std::string str_target_path = target_path.string();
-        if (!str_target_path.empty() && (str_target_path.front() == '/' || str_target_path.front() == '\\')) {
-            str_target_path.erase(0, 1);
-            target_path = fs::path(str_target_path);
-        }
-        fs::path output_file = fs::current_path() / ".cache" / target_path;
-        fs::create_directories(output_file.parent_path());
-
-        FILE *fp = fopen(output_file.string().c_str(), "wb");
-        if (!fp) {
-            cerr << "Cannot open file " << filename << " for writing" << endl;
-            curl_easy_cleanup(easy);
-            return false;
-        }
-        fileHandles.push_back(fp);
-
-        std::string url = host + "/" + target_path.string();
-        curl_easy_setopt(easy, CURLOPT_URL, url.c_str());
-        // 若目标 HOST 发起重定向，则跟随重定向
-        curl_easy_setopt(easy, CURLOPT_FOLLOWLOCATION, 1L);
-        // 设置回调函数，在接收到数据时将其写入文件
-        curl_easy_setopt(easy, CURLOPT_WRITEFUNCTION, HTTPDownloader::writeData);
-        curl_easy_setopt(easy, CURLOPT_WRITEDATA, fp);
-        
-        // 将 easy handle 加入 multi handle 管理
-        curl_multi_add_handle(multiHandle, easy);
-        easyHandles.push_back(easy);
-
-        return true;
-    }
-
-    // 执行所有下载任务（阻塞直到所有任务完成）
-    void processDownloads() {
-        int still_running = 0;
-        // 初始执行一次
-        curl_multi_perform(multiHandle, &still_running);
-
-        while (still_running) {
-            int numfds = 0;
-            // 等待活动发生，超时时间设为 1000 毫秒
-            CURLMcode mc = curl_multi_wait(multiHandle, nullptr, 0, 1000, &numfds);
-            if (mc != CURLM_OK) {
-                cerr << "curl_multi_wait() failed: " << curl_multi_strerror(mc) << endl;
-                break;
+    // 添加下载任务。若相同URL的任务已在下载，则忽略重复添加
+    void addDownloadTask(const std::string& url, DownloadCallback callback = nullptr) {
+        {
+            std::lock_guard<std::mutex> lock(tasksMutex_);
+            if (activeTasks_.find(url) != activeTasks_.end()) {
+                std::cout << "任务 " << url << " 已在下载中，忽略重复添加。\n";
+                return;
             }
-            // 每当等待返回后，继续执行多任务
-            curl_multi_perform(multiHandle, &still_running);
+            activeTasks_.insert(url);
         }
+        boost::asio::post(pool_, [this, url, callback] {
+            downloadTask(url, callback);
+            });
+    }
 
-        // 此处可以进一步通过 curl_multi_info_read 检查每个 easy handle 的执行结果，
-        // 并进行错误处理或下载重试等操作
+    // 等待所有任务执行完成（一般在程序退出前调用）
+    void waitForTasks() {
+        pool_.join();
     }
 
 private:
-    CURLM *multiHandle{nullptr};
-    vector<CURL*> easyHandles;
-    vector<FILE*> fileHandles;
+    // 私有构造函数，初始化线程池和 libcurl 全局环境
+    HTTPDownloader()
+        : pool_(std::thread::hardware_concurrency() > 0 ? std::thread::hardware_concurrency() : 2) {
+        curl_global_init(CURL_GLOBAL_ALL);
+    }
 
-    // 回调函数：将libcurl接收到的数据写入文件
-    static size_t writeData(void *ptr, size_t size, size_t nmemb, void *userData) {
-        FILE *fp = static_cast<FILE*>(userData);
+    ~HTTPDownloader() {
+        // 等待线程池中的所有任务结束后释放资源
+        pool_.join();
+        curl_global_cleanup();
+    }
+
+    // 禁止拷贝构造和赋值
+    HTTPDownloader(const HTTPDownloader&) = delete;
+    HTTPDownloader& operator=(const HTTPDownloader&) = delete;
+
+    // libcurl写数据回调函数（直接写入FILE*）
+    static size_t writeData(void* ptr, size_t size, size_t nmemb, void* userdata) {
+        FILE* fp = static_cast<FILE*>(userdata);
         return fwrite(ptr, size, nmemb, fp);
     }
+
+    // 确保指定目录存在，不存在则创建
+    void ensureDirectoryExists(const std::filesystem::path& dirPath) {
+        if (!std::filesystem::exists(dirPath)) {
+            std::filesystem::create_directories(dirPath);
+        }
+    }
+
+    // 根据 URL 构建本地缓存文件完整路径
+    // 例如：URL "http://example.com/a/b/c/d" 将被保存到 ".cache/example.com/a/b/c/d"
+    std::filesystem::path urlToFilePath(const std::string& url) {
+        std::string stripped = url;
+        // 去掉协议头 "http://" 或 "https://"
+        if (stripped.rfind("http://", 0) == 0) {
+            stripped = stripped.substr(7);
+        }
+        else if (stripped.rfind("https://", 0) == 0) {
+            stripped = stripped.substr(8);
+        }
+
+        // 分离主机名和路径部分
+        size_t pos = stripped.find('/');
+        std::string host;
+        std::string pathPart;
+        if (pos != std::string::npos) {
+            host = stripped.substr(0, pos);
+            pathPart = stripped.substr(pos);  // 包含初始 '/'
+        }
+        else {
+            host = stripped;
+            pathPart = "/index.html";  // 若没有路径，默认文件名
+        }
+
+        // 拼接文件路径：当前运行目录/.cache/host/后续路径
+        std::filesystem::path filePath = std::filesystem::current_path() / ".cache" / host;
+        // 使用 relative_path 去除 pathPart 开头的 '/'（确保路径拼接正确）
+        filePath /= std::filesystem::path(pathPart).relative_path();
+        return filePath;
+    }
+
+    // 真正执行下载任务的函数，由线程池中的线程调用
+    void downloadTask(const std::string& url, DownloadCallback callback) {
+        bool success = false;
+        std::string filePathStr;
+        do {
+            // 计算本地缓存文件完整路径
+            std::filesystem::path localFilePath = urlToFilePath(url);
+            filePathStr = localFilePath.string();
+
+            // 确保文件所在目录存在
+            ensureDirectoryExists(localFilePath.parent_path());
+
+            // 检查是否存在已下载的部分，若存在则获取当前文件大小用于续传
+            curl_off_t resume_from = 0;
+            if (std::filesystem::exists(localFilePath)) {
+                resume_from = static_cast<curl_off_t>(std::filesystem::file_size(localFilePath));
+            }
+
+            CURL* curl = curl_easy_init();
+            if (!curl) {
+                std::cerr << "初始化 curl 失败: " << url << std::endl;
+                break;
+            }
+
+            // 以追加模式打开文件（用于续传）
+            FILE* fp = fopen(filePathStr.c_str(), "ab");
+            if (!fp) {
+                std::cerr << "打开文件失败: " << filePathStr << std::endl;
+                curl_easy_cleanup(curl);
+                break;
+            }
+
+            // 设置 curl 选项
+            curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeData);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+            // 若已下载部分存在，则设置续传起始位置
+            if (resume_from > 0) {
+                curl_easy_setopt(curl, CURLOPT_RESUME_FROM_LARGE, resume_from);
+            }
+            //（可以根据需要添加超时、低速检测等参数设置）
+
+            // 执行下载
+            CURLcode res = curl_easy_perform(curl);
+            if (res != CURLE_OK) {
+                std::cerr << "下载失败: " << url << " 错误信息: " << curl_easy_strerror(res) << std::endl;
+            }
+            else {
+                success = true;
+                std::cout << "下载成功: " << url << std::endl;
+            }
+
+            fclose(fp);
+            curl_easy_cleanup(curl);
+        } while (false);
+
+        // 如果提供了回调，则调用回调
+        if (callback) {
+            callback(url, success);
+        }
+
+        // 从任务管理集合中删除
+        {
+            std::lock_guard<std::mutex> lock(tasksMutex_);
+            activeTasks_.erase(url);
+        }
+    }
+
+    // 线程池，用于并行下载多个任务
+    boost::asio::thread_pool pool_;
+    // 正在下载的URL集合，用于检测重复任务
+    std::unordered_set<std::string> activeTasks_;
+    // 保护 activeTasks_ 的互斥量
+    std::mutex tasksMutex_;
 };
 
+
+// // 示例主函数，演示如何添加下载任务
 //int main() {
-//try {
-//    HTTPDownloader downloader;
+//    auto& downloader = HTTPDownloader::getInstance();
 //
-//    // 示例下载任务列表，你可以根据需要替换成实际的下载链接及保存路径
-//    vector<pair<string, string>> downloads = {
-//        {"http://localhost", "/run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/images/ng/Other/0/COMP1119_1119.png"},
-//        {"http://localhost", "/run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/images/ng/Other/0/COMP1119_1119.png"},
-//        {"http://localhost", "/run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/images/ng/Other/0/COMP1119_1119.png"},
-//        // 如果需要下载大量文件，可继续增加任务，
-//        // 同时也可以考虑设置最大并发数，完成一个任务后再添加新的任务到 multi handle 中
-//    };
+//    // 添加下载任务（附带回调）
+//    downloader.addDownloadTask("http://example.com/a/b/c/d", [](const std::string& url, bool success) {
+//        std::cout << "回调: " << url << " 下载" << (success ? "成功" : "失败") << std::endl;
+//        });
 //
-//    // 添加下载任务
-//    for (const auto& item : downloads) {
-//        if (!downloader.addDownload(item.first, item.second)) {
-//            cerr << "Failed to add download: " << item.first << endl;
-//        }
-//    }
+//    // 添加一个不带回调的任务
+//    downloader.addDownloadTask("http://www.example.org/file.txt");
 //
-//    // 执行所有下载任务
-//    downloader.processDownloads();
-//    cout << "All tasks download finished." << endl;
-//}
-//catch (const exception& ex) {
-//    cerr << "Exception: " << ex.what() << endl;
-//}
+//    // 再次添加相同的任务（此任务将被忽略）
+//    downloader.addDownloadTask("http://example.com/a/b/c/d");
+//
+//    // 等待所有任务完成后退出程序
+//    downloader.waitForTasks();
 //
 //    return 0;
 //}

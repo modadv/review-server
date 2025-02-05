@@ -17,13 +17,14 @@ add_executable (MinReview
 "HttpDownload.h"
 )
 
-set(CURL_INCLUDE_DIR $ENV{CURL_INCLUDE_DIR})
-set(CURL_LIBRARY $ENV{CURL_LIBRARY})
+set(CURL_INCLUDE_DIR $ENV{CURL_ROOT}/include)
+set(CURL_LIBRARY $ENV{CURL_ROOT}/lib/libcurl.lib)
+set(CURL_DLL $ENV{CURL_ROOT}/bin/libcurl.dll)
 
 set(EXPAT_ROOT $ENV{EXPAT_ROOT})
 set(EXPAT_INCLUDE_DIR ${EXPAT_ROOT}/include)
 set(EXPAT_LIBRARY ${EXPAT_ROOT}/lib/libexpatd.lib)
-set(EXPAT_DLL_PATH ${EXPAT_ROOT}/bin/libexpatd.dll)
+set(EXPAT_DLL ${EXPAT_ROOT}/bin/libexpatd.dll)
 
 find_package(Boost 1.87.0 REQUIRED COMPONENTS system filesystem json log)
 find_package(OpenSSL REQUIRED)
@@ -43,7 +44,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     OpenSSL::Crypto
     ${Boost_LIBRARIES}
     ${EXPAT_LIBRARY}
-    ${CURL_LIBRARIE}
+    ${CURL_LIBRARY}
 )
 
 # TODO: Add tests and install targets if needed.
@@ -51,7 +52,12 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 # 添加构建后命令
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${EXPAT_DLL_PATH}"  # DLL 文件源路径
+        "${EXPAT_DLL}"  # DLL 文件源路径
         "$<TARGET_FILE_DIR:${PROJECT_NAME}>"  # 目标生成目录
     COMMENT "Copying libexpatd.dll to output directory"
+    
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CURL_DLL}"  # DLL 文件源路径
+        "$<TARGET_FILE_DIR:${PROJECT_NAME}>"  # 目标生成目录
+    COMMENT "Copying ${CURL_DLL} to output directory"
 )
