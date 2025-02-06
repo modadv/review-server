@@ -7,9 +7,10 @@
 #include <boost/json.hpp>
 // 假设之前实现的代码保存在 WebSocketClientManager.hpp 中
 
-#include "Network.h"
-#include "MinReview.h"
-#include "XmlDownload.h"
+#include <Network.h>
+#include <MinReview.h>
+#include <XmlDownload.h>
+#include <HttpDownload.h>
 
 using namespace std;
 using boost::asio::io_context;
@@ -28,7 +29,7 @@ void testXmlDownload() {
 void testHttpDownload() {
     const std::string url = "http://localhost/run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/images/ng/Other/0/COMP1119_1119.png";
 
-    HTTPDownloader::getInstance().addDownloadTask(url, [](const std::string& url, bool success) {
+    HTTPDownloader::getInstance().addDownloadTask(url, [](const std::string& url, const std::string& local_path, bool success) {
         std::cout << "Download callback: " << url << " Download: " << (success ? "Successfully" : "Failed") << std::endl;
     });
 

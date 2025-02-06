@@ -18,7 +18,7 @@ namespace ip = asio::ip;
 namespace fs = std::filesystem;
 
 namespace utils {
-    
+
     // 辅助函数：拼接 base URL 与相对路径，确保只有一个斜杠相连
     std::string joinHttpUrl(const std::string& base_str, std::string path_str) {
         // 解析基础 URL
@@ -92,4 +92,5 @@ namespace utils {
         filePath /= std::filesystem::path(pathPart).relative_path();
         return filePath;
     }
+
 }

@@ -161,6 +161,9 @@ public:
                             }
 
                             std::cout << "Download task url:" << comp_res_url << std::endl;
+                            HTTPDownloader::getInstance().addDownloadTask(comp_res_url, [](const std::string& url, const std::string& local_path, bool success) {
+                                std::cout << "Download callback: " << local_path << " : " << (success ? "Successfully" : "Failed") << std::endl;
+                                });
                         });
                 }
             }
@@ -208,7 +211,9 @@ public:
         if (shutdown_ec && shutdown_ec != beast::errc::not_connected)
             throw beast::system_error{ shutdown_ec };
 
+        HTTPDownloader::getInstance().waitForTasks();
         std::cout << "\nDownload Successfully, save file at:" << output_file << "\n";
+
         return output_file;
     }
 };
