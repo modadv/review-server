@@ -47,9 +47,11 @@ public:
         const std::string& port = "80")
     {
         std::unique_ptr<IDataHandler> data_handler = nullptr;
-        // 根据 URL 路径构造本地保存路径：
-        // 例如 target "/path/to/file" ——> 当前工作目录/.cache/path/to/file
+        // Construct local path base on the URL：
+        // Such as target "/path/to/file" ——> current/working/directory/.cache/path/to/file
         std::string url = utils::joinHttpUrl(host, target);
+        std::cout << "Join url:" << url << std::endl;
+
         fs::path output_file = utils::urlToFilePath(url);
         std::cout << "Save file at: " << output_file << "\n";
 
@@ -61,8 +63,14 @@ public:
         if (fs::exists(output_file)) {
             existing_file_size = fs::file_size(output_file);
             if (existing_file_size > 0) {
-                std::cout << "Detected partial file(" << existing_file_size
-                    << " bytes), try to continue download...\n";
+                std::uintmax_t remote_file_size = utils::getRemoteFileSize(host, target, port);
+                if (remote_file_size > 0 && existing_file_size >= remote_file_size) {
+                    std::cout << "Whole file exists, needn't to download...\n";
+                    return output_file;
+                }
+                else {
+                    std::cout << "Detected partial file(" << existing_file_size << " bytes), try to continue download...\n";
+                }
                 resume = true;
             }
         }
@@ -193,24 +201,3 @@ public:
         return output_file;
     }
 };
-
-//
-// 示例：调用 XmlDownloader::download 下载文件
-//
-// 
-// void testHTTPDownload() {
-//try {
-//    std::string host = "127.0.0.1";
-//    std::string port = "80";
-//    std::string target = "/run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/report.xml";
-//    fs::path downloaded_file = XmlDownloader::download(host, target, port);
-//    std::cout << "Download successfully, file save at: " << downloaded_file << "\n";
-//}
-//catch (const std::exception& e) {
-//    std::cerr << "Error: " << e.what() << "\n";
-//}
-//}
-//int main() {
-//    testHTTPDownload();
-//    return EXIT_SUCCESS;
-//}

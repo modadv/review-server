@@ -11,8 +11,44 @@
 #include <stdexcept>
 
 namespace urls = boost::urls;
+namespace beast = boost::beast;
+namespace http = beast::http;
+namespace asio = boost::asio;
+namespace ip = asio::ip;
+namespace fs = std::filesystem;
 
 namespace utils {
+
+    // 发起一个HEAD请求以获取远程文件的Content-Length
+    std::uintmax_t getRemoteFileSize(const std::string& host, const std::string& target, const std::string& port = "80")
+    {
+        asio::io_context ioc;
+        ip::tcp::resolver resolver(ioc);
+        beast::tcp_stream stream(ioc);
+        stream.expires_after(std::chrono::seconds(30));
+
+        auto const results = resolver.resolve(host, port);
+        stream.connect(results);
+
+        // 构造 HEAD 请求
+        http::request<http::empty_body> req{ http::verb::head, target, 11 };
+        req.set(http::field::host, host);
+        req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+        http::write(stream, req);
+
+        beast::flat_buffer buffer;
+        http::response<http::empty_body> res;
+        http::read(stream, buffer, res);
+
+        // 关闭连接
+        beast::error_code ec;
+        stream.socket().shutdown(ip::tcp::socket::shutdown_both, ec);
+
+        if (res.find(http::field::content_length) != res.end())
+            return std::stoull(std::string(res[http::field::content_length]));
+        else
+            return 0;
+    }
 
     // 辅助函数：拼接 base URL 与相对路径，确保只有一个斜杠相连
     std::string joinHttpUrl(const std::string& base_str, const std::string& path_str) {
@@ -52,7 +88,7 @@ namespace utils {
         std::string host(base.host().data(), base.host().size());
 
         // 构造最终 URL
-        std::string joined_url = scheme + "://" + host + new_path;
+        std::string joined_url = scheme + "://" + host + "/" + new_path;
         return joined_url;
     }
 
