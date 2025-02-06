@@ -157,7 +157,7 @@ public:
                                 comp_res_url = "http://" + host + "/program/projects/" + res_path.substr(project_prefix.size(), res_path.size() - project_prefix.size());
                             }
                             else {
-                                comp_res_url = result_url + "/" + res_path;
+                                comp_res_url = result_url + res_path;
                             }
 
                             std::cout << "Download task url:" << comp_res_url << std::endl;
@@ -211,7 +211,6 @@ public:
         if (shutdown_ec && shutdown_ec != beast::errc::not_connected)
             throw beast::system_error{ shutdown_ec };
 
-        HTTPDownloader::getInstance().waitForTasks();
         std::cout << "\nDownload Successfully, save file at:" << output_file << "\n";
 
         return output_file;

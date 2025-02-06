@@ -22,6 +22,14 @@ public:
         return instance;
     }
 
+    void printActiveTasks() {
+        std::cout << "\n\n\n\n**********************Current activeTasks:**********************" << std::endl;
+        for (const auto& s : activeTasks_) {
+            std::cout << s << std::endl;
+        }
+        std::cout << "****************************************************************" << std::endl;
+    }
+
     void addDownloadTask(const std::string& url, DownloadCallback callback = nullptr) {
         {
             std::lock_guard<std::mutex> lock(tasksMutex_);
@@ -30,19 +38,17 @@ public:
                 return;
             }
             activeTasks_.insert(url);
+            printActiveTasks();
         }
         boost::asio::post(pool_, [this, url, callback] {
             downloadTask(url, callback);
             });
     }
 
-    void waitForTasks() {
-        pool_.join();
-    }
-
 private:
-    HTTPDownloader()
-        : pool_(std::thread::hardware_concurrency() > 0 ? std::thread::hardware_concurrency() : 2) {
+    HTTPDownloader() :
+        pool_(std::thread::hardware_concurrency() > 0 ? std::thread::hardware_concurrency() : 2),
+        workGuard_(boost::asio::make_work_guard(pool_.get_executor())) {
         curl_global_init(CURL_GLOBAL_ALL);
     }
 
@@ -69,6 +75,7 @@ private:
         bool success = false;
         std::string filePathStr;
         do {
+            std::cout << "//////////////////// start downloadTask: " << url << std::endl;
             std::filesystem::path localFilePath = utils::urlToFilePath(url);
             filePathStr = localFilePath.string();
 
@@ -102,11 +109,11 @@ private:
 
             CURLcode res = curl_easy_perform(curl);
             if (res != CURLE_OK) {
-                std::cerr << "Download failed: " << url << " error msg: " << curl_easy_strerror(res) << std::endl;
+                std::cerr << "//////////////////// Download failed: " << url << " error msg: " << curl_easy_strerror(res) << std::endl;
             }
             else {
                 success = true;
-                std::cout << "Download successfully: " << url << std::endl;
+                std::cout << "//////////////////// Download successfully: " << url << std::endl;
             }
 
             fclose(fp);
@@ -124,6 +131,7 @@ private:
     }
 
     boost::asio::thread_pool pool_;
+    boost::asio::executor_work_guard<boost::asio::thread_pool::executor_type> workGuard_;
     std::unordered_set<std::string> activeTasks_;
     std::mutex tasksMutex_;
 };

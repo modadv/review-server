@@ -32,8 +32,6 @@ void testHttpDownload() {
     HTTPDownloader::getInstance().addDownloadTask(url, [](const std::string& url, const std::string& local_path, bool success) {
         std::cout << "Download callback: " << url << " Download: " << (success ? "Successfully" : "Failed") << std::endl;
     });
-
-    HTTPDownloader::getInstance().waitForTasks();
 }
 
 
