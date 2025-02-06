@@ -63,14 +63,7 @@ public:
         if (fs::exists(output_file)) {
             existing_file_size = fs::file_size(output_file);
             if (existing_file_size > 0) {
-                std::uintmax_t remote_file_size = utils::getRemoteFileSize(host, target, port);
-                if (remote_file_size > 0 && existing_file_size >= remote_file_size) {
-                    std::cout << "Whole file exists, needn't to download...\n";
-                    return output_file;
-                }
-                else {
-                    std::cout << "Detected partial file(" << existing_file_size << " bytes), try to continue download...\n";
-                }
+                std::cout << "Detected partial file(" << existing_file_size << " bytes), try to continue download...\n";
                 resume = true;
             }
         }
@@ -140,10 +133,16 @@ public:
                 auto res = parser.get();
 
                 // 续传请求，状态码应为 206；否则为 200
-                if (resume && res.result() != http::status::partial_content)
+                if (resume && res.result() == http::status::range_not_satisfiable) {
+                    std::cout << "File had been downloaded completly." << std::endl;
+                    return output_file;
+                }
+                else if (resume && res.result() != http::status::partial_content) {
                     throw std::runtime_error("Continue download error, server response code:" + std::to_string(res.result_int()));
-                else if (!resume && res.result() != http::status::ok)
+                }
+                else if (!resume && res.result() != http::status::ok) {
                     throw std::runtime_error("Download failed, server response code:" + std::to_string(res.result_int()));
+                }
 
                 // 尝试解析 Content-Length（如果存在）
                 if (res.find(http::field::content_length) != res.end()) {
