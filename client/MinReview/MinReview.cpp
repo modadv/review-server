@@ -65,6 +65,13 @@ void runClient() {
     // 添加两个连接
     // 连接到 127.0.0.1:9002
     clientManager.addConnection("127.0.0.1", "8194");
+    clientManager.addConnection("127.0.0.1", "8195");
+    clientManager.addConnection("127.0.0.1", "8196");
+    clientManager.addConnection("127.0.0.1", "8197");
+    clientManager.addConnection("127.0.0.1", "8198");
+    clientManager.addConnection("127.0.0.1", "8199");
+    clientManager.addConnection("127.0.0.1", "8200");
+    clientManager.addConnection("127.0.0.1", "8201");
 
     // 利用 asio::steady_timer 模拟延时发送消息，确保连接成功建立后再进行发送
     steady_timer timer(ioc, std::chrono::seconds(2));

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -318,10 +319,12 @@ func main() {
 		serveWs(hub, w, r)
 	})
 
-	// 统一监听单个端口，例如 8194
-	addr := ":8194"
-	log.Printf("服务器启动，监听端口 %s", addr)
-	if err := http.ListenAndServe(addr, nil); err != nil {
+	// 从命令行参数获取地址，默认地址为 :8194
+	addr := flag.String("addr", ":8194", "HTTP Service listen address  :8194 or 127.0.0.1:8080")
+	flag.Parse()
+
+	log.Printf("Service start, listening on: %s", *addr)
+	if err := http.ListenAndServe(*addr, nil); err != nil {
 		log.Fatalf("ListenAndServe error: %v", err)
 	}
 }
