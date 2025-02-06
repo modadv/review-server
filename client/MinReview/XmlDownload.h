@@ -25,15 +25,6 @@ namespace asio = boost::asio;           // Boost.Asio
 namespace ip = asio::ip;
 namespace fs = std::filesystem;
 
-/*
-  XmlDownloader 封装了 HTTP 下载文件的接口：
-    - download(host, target[, port]) 用于从指定 host 与 target 下载文件，
-      保存至当前工作目录下的 ".cache/..." 目录结构中；
-    - 当本地已有缓存文件时，会自动采用续传模式（使用 Range 请求）；
-    - 为降低内存开销，采用分块读取方式，每次从 socket 中读取 8KB 数据，
-      逐步提交给 HTTP response_parser 解析并从 dynamic_body 中提取数据写入文件；
-    - 对连接和读写均设置超时（30 秒），以应对网络环境较差的情况。
-*/
 class XmlDownloader {
 public:
     // 下载文件接口：
@@ -56,6 +47,13 @@ public:
         std::cout << "Save file at: " << output_file << "\n";
 
         fs::create_directories(output_file.parent_path());
+
+        // Get result path
+        std::string result_url = url;
+        size_t result_pos = result_url.rfind("/report.xml");
+        if (result_pos != std::string::npos) {
+            result_url = result_url.substr(0, result_pos + 1);
+        }
 
         // 判断是否存在部分下载，若存在则采用续传
         std::uintmax_t existing_file_size = 0;
@@ -106,6 +104,7 @@ public:
         if (!file)
             throw std::runtime_error("Cannot open output file " + output_file.string());
 
+        const std::string project_prefix("../../../../../program/projects/");
         // 主循环：不断从 socket 读取数据，提交给 parser，再写入文件
         for (;;) {
             beast::error_code ec;
@@ -148,8 +147,21 @@ public:
                 if (res.find(http::field::content_length) != res.end()) {
                     content_length = std::stoull(std::string(res[http::field::content_length]));
                 }
+
                 if (existing_file_size == 0) {
-                    data_handler = std::make_unique<XmlToJsonDataHandler>(output_file.replace_extension(".json").string());
+                    data_handler = std::make_unique<XmlToJsonDataHandler>(output_file.replace_extension(".json").string(),
+                        [&host, &result_url, &project_prefix](std::string res_path) {
+                            std::string comp_res_url;
+                            size_t prefix_pos = res_path.find(project_prefix);
+                            if (prefix_pos != std::string::npos) {
+                                comp_res_url = "http://" + host + "/program/projects/" + res_path.substr(project_prefix.size(), res_path.size() - project_prefix.size());
+                            }
+                            else {
+                                comp_res_url = result_url + "/" + res_path;
+                            }
+
+                            std::cout << "Download task url:" << comp_res_url << std::endl;
+                        });
                 }
             }
 

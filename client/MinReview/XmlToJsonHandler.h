@@ -12,13 +12,14 @@
 
 class XmlToJsonDataHandler : public IDataHandler {
 public:
-    XmlToJsonDataHandler(const std::string& file_path) :
+    XmlToJsonDataHandler(const std::string& file_path, std::function<void(const std::string& res_path)> parse_callback = nullptr) :
         ofs_(file_path, std::ios::binary),
         filePath_(file_path),
         parser_(nullptr),
         root_(boost::json::object()),
         componentDepth_(0),
-        componentCaptured_(false)
+        componentCaptured_(false),
+        componentParseCallback_(parse_callback)
     {
         if (!ofs_) {
             throw std::runtime_error("Failed to open file:" + file_path);
@@ -199,6 +200,9 @@ private:
             // 其它情况下简单转换为字符串
             *current = trimmed;
         }
+        if (!trimmed.empty() && componentParseCallback_ && (trimmed.ends_with(".jpg") || trimmed.ends_with(".jpeg") || trimmed.ends_with(".png"))) {
+            componentParseCallback_(trimmed);
+        }
     }
 
     // 辅助函数：去除字符串首尾空白字符
@@ -226,4 +230,6 @@ private:
     // componentCaptured_ 为 true 表示已经完整解析过第一个 <component>
     int componentDepth_;
     bool componentCaptured_;
+
+    std::function<void(const std::string& res_path)> componentParseCallback_;
 };
