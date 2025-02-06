@@ -107,9 +107,14 @@ private:
 				auto parsed_json = json::parse(received_data);
 				auto& obj = parsed_json.as_object();
 				int protocol_id = obj.at("protocol_id").as_int64();
-				auto& data = obj.at("data").as_object();
-				// 将接收到的数据（附带服务端 host 信息）传递给统一的数据处理入口
-				registry_.handleProtocol(host_, protocol_id, data);
+				if (obj.at("data").is_string()) {
+					std::cout << "Simple message from " << host_ << " : " << obj.at("data").as_string() << std::endl;
+				}
+				else {
+					auto& data = obj.at("data").as_object();
+					// 将接收到的数据（附带服务端 host 信息）传递给统一的数据处理入口
+					registry_.handleProtocol(host_, protocol_id, data);
+				}
 			}
 			catch (const std::exception& e) {
 				std::cerr << "Error parsing received data: " << e.what() << std::endl;

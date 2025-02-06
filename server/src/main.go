@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -24,14 +25,23 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("Request /tasks has been processed from IP: %s, Port: %s", ip, port)
 
+	resultPrefix := "/home/aoi/aoi"
+	inspectorIP, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		fmt.Fprintf(w, "Cannot parse IP address: %v", err)
+		inspectorIP = r.RemoteAddr
+	}
+
 	// 提取 URL 查询参数
 	addressParam := r.URL.Query().Get("address")
+	relativeAddress := strings.TrimPrefix(addressParam, resultPrefix)
 	modelParam := r.URL.Query().Get("model")
 	versionParam := r.URL.Query().Get("version")
 
 	// 构造具体转发数据部分，放置在 data 字段内
 	data := map[string]string{
-		"address": addressParam,
+		"host":    inspectorIP,
+		"target":  relativeAddress,
 		"model":   modelParam,
 		"version": versionParam,
 	}

@@ -45,7 +45,16 @@ void runClient() {
     ProtocolHandlerRegistry registry;
 
     registry.registerHandler(1, [](const std::string& host, int protocol_id, const json::object& data) {
-        std::cout << "Handler for protocol " << protocol_id << " from " << host << " received data: " << data.at("address").as_string() << std::endl;
+        std::cout << "Handler for protocol " << protocol_id << " from " << host << std::endl;
+        std::cout << "Original host: " << data.at("host").as_string() << std::endl;
+        std::cout << "Target: " << data.at("target").as_string() << std::endl;
+
+        std::string inspector_host(data.at("host").as_string().c_str());
+        std::string port = "80";
+        std::string inspector_target(data.at("target").as_string().c_str());
+        inspector_target += "/report.xml";
+        fs::path downloaded_file = XmlDownloader::download(inspector_host, inspector_target, port);
+
         });
 
     registry.registerHandler(2, [](const std::string& host, int protocol_id, const json::object& data) {
@@ -80,7 +89,7 @@ void runClient() {
 
 int main() {
     // testHttpDownload();
-    testXmlDownload();
-    // runClient();
+    // testXmlDownload();
+    runClient();
     return 0;
 }
