@@ -13,6 +13,19 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// 定义用于接收 JSON 数据的结构体
+type ReviewResult struct {
+	ProtocolID int             `json:"protocol_id"`
+	Data       InspectorResult `json:"data"`
+}
+
+type InspectorResult struct {
+	Host     string `json:"host"`
+	Target   string `json:"target"`
+	Model    string `json:"model"`
+	Versioni string `json:"version"`
+}
+
 var hub *Hub
 
 func tasksHandler(w http.ResponseWriter, r *http.Request) {
@@ -35,6 +48,8 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 	modelParam := r.URL.Query().Get("model")
 	versionParam := r.URL.Query().Get("version")
 
+	log.Println(fmt.Sprintf("////////Review_1:Received_from_Inspector////////%s%s", inspectorIP, relativeAddress))
+
 	data := map[string]string{
 		"host":    inspectorIP,
 		"target":  relativeAddress,
@@ -53,6 +68,7 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Println(fmt.Sprintf("////////Review_2:Start_broadcast////////%s%s", inspectorIP, relativeAddress))
 	hub.broadcast <- jsonMsg
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -208,10 +224,10 @@ func (c *Client) readPump() {
 			continue
 		}
 		data := make(map[string]interface{})
-		data["msg"] = dataField.(string) + " # Review Finished"
 		// 根据 protocol_id 选择处理方式
 		switch int(protocolID) {
 		case 1:
+			data["msg"] = dataField.(string) + " # Review Finished"
 			// 对于 protocol_id = 1，采用 ECHO 功能：
 			// 将收到的 data 重新封装成相同的 JSON 格式回复给客户端
 			response := map[string]interface{}{ // 回复客户端的2号协议
@@ -226,6 +242,13 @@ func (c *Client) readPump() {
 			log.Printf("Echoing message to %s: %s", c.id, responseJSON)
 			// 将回复消息写入客户端的发送 channel，由 writePump 负责实际调用系统网络接口发送数据
 			c.send <- responseJSON
+		case 2:
+			var reviewResult ReviewResult
+			if err := json.Unmarshal(message, &reviewResult); err != nil {
+				log.Fatalf("Parse JSON data failed: %v", err)
+			}
+			// 对于 protocol_id = 2，是来自客户端的复判结果，数据与广播的检测结果一致：
+			log.Println(fmt.Sprintf("////////Review_999:Received_review_result////////%s%s", reviewResult.Data.Host, reviewResult.Data.Target))
 
 		default:
 			log.Printf("Unsupported protocol_id %v from %s", protocolID, c.id)
@@ -297,6 +320,7 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
 	// 初始化并启动 Hub 循环（这里使用全局 hub 变量）
 	hub = newHub()
 	go hub.run()

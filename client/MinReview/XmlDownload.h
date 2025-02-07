@@ -25,11 +25,15 @@ namespace asio = boost::asio;           // Boost.Asio
 namespace ip = asio::ip;
 namespace fs = std::filesystem;
 
+
+using ReviewCallback = std::function<void()>;
+
 class XmlDownloader {
 public:
     static fs::path download(const std::string& host,
         const std::string& target,
-        const std::string& port = "80")
+        const std::string& port = "80",
+        ReviewCallback review_callback = nullptr)
     {
         std::unique_ptr<IDataHandler> data_handler = nullptr;
         std::string url = utils::joinHttpUrl(host, target);
@@ -198,6 +202,9 @@ public:
             throw beast::system_error{ shutdown_ec };
 
         std::cout << "\nDownload Successfully, save file at:" << output_file << "\n";
+        if (review_callback) {
+            review_callback();
+        }
         return output_file;
     }
 };

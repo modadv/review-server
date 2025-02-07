@@ -34,19 +34,30 @@ void testHttpDownload() {
     });
 }
 
+static void onReviewFinishedCallback(WebSocketClientManager& clientMgr, const std::string& host, const std::string& port, const json::object& data) {
+    json::object review_msg;
+    review_msg["protocol_id"] = 2;
+    review_msg["data"] = data;
+    clientMgr.sendMessage(host, port, review_msg);
+    std::cout << "********//////**********////////  Review Finished" << std::endl;
+}
 
 void runClient() {
     // 创建 io_context 对象用于异步 IO
     io_context ioc;
 
-    // 实例化协议处理注册中心，并注册协议处理回调函数
     ProtocolHandlerRegistry registry;
+    WebSocketClientManager clientManager(ioc, registry);
 
-    registry.registerHandler(1, [](const std::string& host, const std::string& port, int protocol_id, const json::object& data) {
+
+    // 实例化协议处理注册中心，并注册协议处理回调函数
+    registry.registerHandler(1, [&clientManager](const std::string& host, const std::string& port, int protocol_id, const json::object& data) {
         std::string inspector_host(data.at("host").as_string().c_str());
         std::string inspector_target(data.at("target").as_string().c_str());
         inspector_target += "/report.xml";
-        fs::path downloaded_file = XmlDownloader::download(inspector_host, inspector_target, "80"); // 80 for nginx default port
+        fs::path downloaded_file = XmlDownloader::download(inspector_host, inspector_target, "80", [&clientManager, &host, &port, &data]() {
+            onReviewFinishedCallback(clientManager, host, port, data);
+            }); // 80 for nginx default port
 
         });
 
@@ -55,7 +66,6 @@ void runClient() {
         });
 
     // 创建 WebSocket 客户端管理器，管理与不同服务端的连接
-    WebSocketClientManager clientManager(ioc, registry);
 
     // 添加两个连接
     // 连接到 127.0.0.1:9002
@@ -84,6 +94,8 @@ void runClient() {
     //    });
 
     // 运行 io_context 的事件循环，处理所有异步任务（连接、重连、消息收发等）
+
+
     ioc.run();
 }
 
