@@ -13,15 +13,12 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// 声明全局的 Hub 实例
 var hub *Hub
 
-// tasksHandler 处理 /tasks 路由请求，并将主机A的信息发送给所有 WebSocket 客户端
 func tasksHandler(w http.ResponseWriter, r *http.Request) {
-	// 解析主机A的 IP 和端口
 	ip, port, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		http.Error(w, "无法解析客户端地址", http.StatusInternalServerError)
+		http.Error(w, "Cannot resolve client address:", http.StatusInternalServerError)
 		return
 	}
 	log.Printf("Request /tasks has been processed from IP: %s, Port: %s", ip, port)
@@ -33,13 +30,11 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 		inspectorIP = r.RemoteAddr
 	}
 
-	// 提取 URL 查询参数
 	addressParam := r.URL.Query().Get("address")
 	relativeAddress := strings.TrimPrefix(addressParam, resultPrefix)
 	modelParam := r.URL.Query().Get("model")
 	versionParam := r.URL.Query().Get("version")
 
-	// 构造具体转发数据部分，放置在 data 字段内
 	data := map[string]string{
 		"host":    inspectorIP,
 		"target":  relativeAddress,
@@ -47,8 +42,6 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 		"version": versionParam,
 	}
 
-	// 构造最终的 JSON 消息格式：
-	// protocol_id 和客户端相关信息放在顶层，数据具体内容封装在 data 字段内
 	messageWrapper := map[string]interface{}{
 		"protocol_id": 1,
 		"data":        data,
@@ -60,10 +53,8 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 将消息通过 hub 的 broadcast 通道发送给所有在线的 WebSocket 客户端
 	hub.broadcast <- jsonMsg
 
-	// 同时返回响应给发起请求的 HTTP 客户端
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	fmt.Fprintln(w, "Request /tasks processed and info broadcasted to websocket clients.")
 }
@@ -71,7 +62,7 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 func settingHandler(w http.ResponseWriter, r *http.Request) {
 	ip, port, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
-		http.Error(w, "无法解析客户端地址", http.StatusInternalServerError)
+		http.Error(w, "Cannot resolve client address:", http.StatusInternalServerError)
 		return
 	}
 	log.Printf("Request /setting has been processed from IP: %s, Port: %s", ip, port)

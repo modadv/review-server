@@ -212,7 +212,6 @@ public:
             throw beast::system_error{ shutdown_ec };
 
         std::cout << "\nDownload Successfully, save file at:" << output_file << "\n";
-
         return output_file;
     }
 };
