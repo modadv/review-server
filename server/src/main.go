@@ -20,10 +20,10 @@ type ReviewResult struct {
 }
 
 type InspectorResult struct {
-	Host     string `json:"host"`
-	Target   string `json:"target"`
-	Model    string `json:"model"`
-	Versioni string `json:"version"`
+	Host    string `json:"host"`
+	Target  string `json:"target"`
+	Model   string `json:"model"`
+	Version string `json:"version"`
 }
 
 var hub *Hub
