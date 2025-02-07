@@ -72,10 +72,10 @@ private:
 
     void downloadTask(const std::string& url, DownloadCallback callback) {
         bool success = false;
-        std::string filePathStr;
+        std::string file_path_str;
         do {
             std::filesystem::path localFilePath = utils::urlToFilePath(url);
-            filePathStr = localFilePath.string();
+            file_path_str = localFilePath.string();
 
             ensureDirectoryExists(localFilePath.parent_path());
 
@@ -91,9 +91,9 @@ private:
             }
 
             // 以追加模式打开文件（用于续传）
-            FILE* fp = fopen(filePathStr.c_str(), "ab");
+            FILE* fp = fopen(file_path_str.c_str(), "ab");
             if (!fp) {
-                std::cerr << "Open file failed: " << filePathStr << std::endl;
+                std::cerr << "Open file failed: " << file_path_str << std::endl;
                 curl_easy_cleanup(curl);
                 break;
             }
@@ -118,8 +118,9 @@ private:
         } while (false);
 
         if (callback) {
-            callback(url, filePathStr, success);
+            callback(url, file_path_str, success);
         }
+        std::cout << ":: :: ::Download file to " << file_path_str << " finished." << std::endl;
 
         {
             std::lock_guard<std::mutex> lock(tasksMutex_);

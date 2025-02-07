@@ -26,17 +26,22 @@ namespace ip = asio::ip;
 namespace fs = std::filesystem;
 
 
-using ReviewCallback = std::function<void()>;
+using ReviewCallback = std::function<void(const std::string& host, const std::string& port, const json::object& data)>;
 
 class XmlDownloader {
 public:
-    static fs::path download(const std::string& host,
-        const std::string& target,
-        const std::string& port = "80",
-        ReviewCallback review_callback = nullptr)
-    {
+    static fs::path download(
+        const std::string& server_host,
+        const std::string& server_port,
+        const json::object& data,
+        ReviewCallback review_callback = nullptr
+    ) {
+        std::string inspector_host(data.at("host").as_string().c_str());
+        std::string inspector_target(data.at("target").as_string().c_str());
+        inspector_target += "/report.xml";
+
         std::unique_ptr<IDataHandler> data_handler = nullptr;
-        std::string url = utils::joinHttpUrl(host, target);
+        std::string url = utils::joinHttpUrl(inspector_host, inspector_target);
         fs::path output_file = utils::urlToFilePath(url);
         fs::create_directories(output_file.parent_path());
         std::string result_url = url;
@@ -66,12 +71,12 @@ public:
         stream.expires_after(std::chrono::seconds(30));
 
         // 解析域名并建立连接
-        auto const results = resolver.resolve(host, port);
+        auto const results = resolver.resolve(inspector_host, "80");  // resource server port=80
         stream.connect(results);
 
         // 构造 HTTP GET 请求，若需要续传则添加 Range 头
-        http::request<http::empty_body> req{ http::verb::get, target, 11 };
-        req.set(http::field::host, host);
+        http::request<http::empty_body> req{ http::verb::get, inspector_target, 11 };
+        req.set(http::field::host, inspector_host);
         req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
         if (resume) {
             req.set(http::field::range, "bytes=" + std::to_string(existing_file_size) + "-");
@@ -140,20 +145,18 @@ public:
 
                 if (existing_file_size == 0) {
                     data_handler = std::make_unique<XmlToJsonDataHandler>(output_file.replace_extension(".json").string(),
-                        [&host, &result_url, &project_prefix](std::string res_path) {
+                        [&inspector_host, &result_url, &project_prefix](std::string res_path) {
                             std::string comp_res_url;
                             size_t prefix_pos = res_path.find(project_prefix);
                             if (prefix_pos != std::string::npos) {
-                                comp_res_url = "http://" + host + "/program/projects/" + res_path.substr(project_prefix.size(), res_path.size() - project_prefix.size());
+                                comp_res_url = "http://" + inspector_host + "/program/projects/" + res_path.substr(project_prefix.size(), res_path.size() - project_prefix.size());
                             }
                             else {
                                 comp_res_url = result_url + res_path;
                             }
 
-                            std::cout << "Download task url:" << comp_res_url << std::endl;
-                            HTTPDownloader::getInstance().addDownloadTask(comp_res_url, [](const std::string& url, const std::string& local_path, bool success) {
-                                // On resource download finished, invoke gui callback etc.
-                                });
+                            std::cout << "Add download task url:" << comp_res_url << std::endl;
+                            HTTPDownloader::getInstance().addDownloadTask(comp_res_url);
                         });
                 }
             }
@@ -203,7 +206,7 @@ public:
 
         std::cout << "\nDownload Successfully, save file at:" << output_file << "\n";
         if (review_callback) {
-            review_callback();
+            review_callback(server_host, server_port, data);
         }
         return output_file;
     }

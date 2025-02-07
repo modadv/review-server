@@ -195,15 +195,28 @@ private:
 	asio::steady_timer reconnect_timer_;
 };
 
-//
-// WebSocketClientManager 类：管理多个 ManagedWebSocketClient 连接，上层可通过 host + port 作为 key 快速查找，并调用发送函数。
-// 同时也可以根据需要扩展删除连接等接口。
-//
 class WebSocketClientManager {
 public:
-	WebSocketClientManager(asio::io_context& ioc, ProtocolHandlerRegistry& registry)
-		: ioc_(ioc),
-		registry_(registry) {
+	// 获取单例实例，无需传入外部的 io_context 或 registry
+	static WebSocketClientManager& getInstance() {
+		static WebSocketClientManager instance;
+		return instance;
+	}
+
+	// 禁止拷贝与赋值
+	WebSocketClientManager(const WebSocketClientManager&) = delete;
+	WebSocketClientManager& operator=(const WebSocketClientManager&) = delete;
+	WebSocketClientManager(WebSocketClientManager&&) = delete;
+	WebSocketClientManager& operator=(WebSocketClientManager&&) = delete;
+
+	// 提供对内部 asio::io_context 的访问
+	boost::asio::io_context& getIOContext() {
+		return ioc_;
+	}
+
+	// 提供对内部 ProtocolHandlerRegistry 的访问
+	ProtocolHandlerRegistry& getRegistry() {
+		return registry_;
 	}
 
 	// 创建并启动到目标服务端的连接
@@ -223,7 +236,7 @@ public:
 		std::string key = host + ":" + port;
 		auto it = connections_.find(key);
 		if (it != connections_.end()) {
-			// 这里可以增加关闭连接的逻辑
+			// 可在此处添加断开连接、清理资源等逻辑
 			connections_.erase(it);
 		}
 	}
@@ -241,7 +254,13 @@ public:
 	}
 
 private:
-	asio::io_context& ioc_;
-	ProtocolHandlerRegistry& registry_;
+	// 私有构造函数，由单例模式内部创建实例
+	WebSocketClientManager() : ioc_(), registry_() {
+		// 此处可以进行 io_context 与 registry 的初始化操作
+	}
+
+	// 成员变量，内部管理 io_context 与 registry
+	boost::asio::io_context ioc_;
+	ProtocolHandlerRegistry registry_;
 	std::unordered_map<std::string, std::shared_ptr<ManagedWebSocketClient>> connections_;
 };

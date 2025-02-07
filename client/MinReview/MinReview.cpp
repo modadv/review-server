@@ -19,11 +19,11 @@ using boost::json::object;
 using namespace std::chrono_literals;
 
 void testXmlDownload() {
-    std::string host = "127.0.0.1";
-    std::string port = "80";
-    std::string target = "/run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/report.xml";
-    fs::path downloaded_file = XmlDownloader::download(host, target, port);
-    std::cout << "Download successfully, file save at: " << downloaded_file << "\n";
+    //std::string host = "127.0.0.1";
+    //std::string port = "80";
+    //std::string target = "/run/results/AP-M003CM-EA.2955064502/20250116/T_20241018193101867_1_NG/report.xml";
+    //fs::path downloaded_file = XmlDownloader::download(host, target, port);
+    //std::cout << "Download successfully, file save at: " << downloaded_file << "\n";
 }
 
 void testHttpDownload() {
@@ -34,69 +34,36 @@ void testHttpDownload() {
     });
 }
 
-static void onReviewFinishedCallback(WebSocketClientManager& clientMgr, const std::string& host, const std::string& port, const json::object& data) {
+static void onReviewFinishedCallback(const std::string& host, const std::string& port, const json::object& data) {
     json::object review_msg;
     review_msg["protocol_id"] = 2;
     review_msg["data"] = data;
-    clientMgr.sendMessage(host, port, review_msg);
+    WebSocketClientManager::getInstance().sendMessage(host, port, review_msg);
     std::cout << "********//////**********////////  Review Finished" << std::endl;
 }
 
-void runClient() {
-    // 创建 io_context 对象用于异步 IO
-    io_context ioc;
+static void onProtocol1(const std::string& host, const std::string& port, int protocol_id, const json::object& data) {
+    fs::path downloaded_file = XmlDownloader::download(host, port, data, onReviewFinishedCallback);
+}
 
-    ProtocolHandlerRegistry registry;
-    WebSocketClientManager clientManager(ioc, registry);
+static void onProtocol2(const std::string& host, const std::string& port, int protocol_id, const json::object& data) {
+    // test
+}
 
+static void runClient() {
+    WebSocketClientManager::getInstance().getRegistry().registerHandler(1, onProtocol1);
+    WebSocketClientManager::getInstance().getRegistry().registerHandler(2, onProtocol2);
 
-    // 实例化协议处理注册中心，并注册协议处理回调函数
-    registry.registerHandler(1, [&clientManager](const std::string& host, const std::string& port, int protocol_id, const json::object& data) {
-        std::string inspector_host(data.at("host").as_string().c_str());
-        std::string inspector_target(data.at("target").as_string().c_str());
-        inspector_target += "/report.xml";
-        fs::path downloaded_file = XmlDownloader::download(inspector_host, inspector_target, "80", [&clientManager, &host, &port, &data]() {
-            onReviewFinishedCallback(clientManager, host, port, data);
-            }); // 80 for nginx default port
+    WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8194");
+    //WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8195");
+    //WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8196");
+    //WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8197");
+    //WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8198");
+    //WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8199");
+    //WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8200");
+    //WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8201");
 
-        });
-
-    registry.registerHandler(2, [](const std::string& host, const std::string& port, int protocol_id, const json::object& data) {
-        // test
-        });
-
-    // 创建 WebSocket 客户端管理器，管理与不同服务端的连接
-
-    // 添加两个连接
-    // 连接到 127.0.0.1:9002
-    clientManager.addConnection("127.0.0.1", "8194");
-    clientManager.addConnection("127.0.0.1", "8195");
-    clientManager.addConnection("127.0.0.1", "8196");
-    clientManager.addConnection("127.0.0.1", "8197");
-    clientManager.addConnection("127.0.0.1", "8198");
-    clientManager.addConnection("127.0.0.1", "8199");
-    clientManager.addConnection("127.0.0.1", "8200");
-    clientManager.addConnection("127.0.0.1", "8201");
-
-    //// 利用 asio::steady_timer 模拟延时发送消息，确保连接成功建立后再进行发送
-    //steady_timer timer(ioc, std::chrono::seconds(2));
-    //timer.async_wait([&clientManager](const boost::system::error_code& ec) {
-    //    if (!ec) {
-    //        // 构造 JSON 格式协议数据，此处仅包含 protocol_id 与 data 字段，
-    //        // 服务器收到后可能会结合客户端标记的 host 信息进行处理
-    //        object msg;
-    //        msg["protocol_id"] = 1;
-    //        msg["data"] = "Hello, server! This is a Review message.";
-
-    //        // 通过指定 host 与 port ，选择向目标服务器发送数据
-    //        clientManager.sendMessage("127.0.0.1", "8194", msg);
-    //    }
-    //    });
-
-    // 运行 io_context 的事件循环，处理所有异步任务（连接、重连、消息收发等）
-
-
-    ioc.run();
+    WebSocketClientManager::getInstance().getIOContext().run();
 }
 
 int main() {
