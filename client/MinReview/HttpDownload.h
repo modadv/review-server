@@ -23,7 +23,7 @@ public:
     }
 
     void printActiveTasks() {
-        std::cout << "\n\n\n\n**********************Current activeTasks:**********************" << std::endl;
+        std::cout << "**********************Current activeTasks:**********************" << std::endl;
         for (const auto& s : activeTasks_) {
             std::cout << s << std::endl;
         }
@@ -38,7 +38,6 @@ public:
                 return;
             }
             activeTasks_.insert(url);
-            printActiveTasks();
         }
         boost::asio::post(pool_, [this, url, callback] {
             downloadTask(url, callback);
@@ -75,7 +74,6 @@ private:
         bool success = false;
         std::string filePathStr;
         do {
-            std::cout << "//////////////////// start downloadTask: " << url << std::endl;
             std::filesystem::path localFilePath = utils::urlToFilePath(url);
             filePathStr = localFilePath.string();
 
@@ -109,11 +107,10 @@ private:
 
             CURLcode res = curl_easy_perform(curl);
             if (res != CURLE_OK) {
-                std::cerr << "//////////////////// Download failed: " << url << " error msg: " << curl_easy_strerror(res) << std::endl;
+                std::cerr << "Download failed: " << url << " error msg: " << curl_easy_strerror(res) << std::endl;
             }
             else {
                 success = true;
-                std::cout << "//////////////////// Download successfully: " << url << std::endl;
             }
 
             fclose(fp);

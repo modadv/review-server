@@ -27,28 +27,14 @@ namespace fs = std::filesystem;
 
 class XmlDownloader {
 public:
-    // 下载文件接口：
-    //   host   : 服务器主机名（例如 "www.example.com"）
-    //   target : 文件在服务器的 URL 路径（例如 "/path/to/file"）
-    //   port   : 服务端口，默认为 "80"
-    // 返回值:
-    //   本地保存下载文件的完整路径（fs::path）
     static fs::path download(const std::string& host,
         const std::string& target,
         const std::string& port = "80")
     {
         std::unique_ptr<IDataHandler> data_handler = nullptr;
-        // Construct local path base on the URL：
-        // Such as target "/path/to/file" ——> current/working/directory/.cache/path/to/file
         std::string url = utils::joinHttpUrl(host, target);
-        std::cout << "Join url:" << url << std::endl;
-
         fs::path output_file = utils::urlToFilePath(url);
-        std::cout << "Save file at: " << output_file << "\n";
-
         fs::create_directories(output_file.parent_path());
-
-        // Get result path
         std::string result_url = url;
         size_t result_pos = result_url.rfind("/report.xml");
         if (result_pos != std::string::npos) {
@@ -162,7 +148,7 @@ public:
 
                             std::cout << "Download task url:" << comp_res_url << std::endl;
                             HTTPDownloader::getInstance().addDownloadTask(comp_res_url, [](const std::string& url, const std::string& local_path, bool success) {
-                                std::cout << "Download callback: " << local_path << " : " << (success ? "Successfully" : "Failed") << std::endl;
+                                // On resource download finished, invoke gui callback etc.
                                 });
                         });
                 }

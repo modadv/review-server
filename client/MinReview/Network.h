@@ -22,7 +22,7 @@ using tcp = asio::ip::tcp;
  * 修改后的协议处理回调类型：除了 protocol_id 与 data 外，还增加了 host 字段，
  * 用于标识数据来源的服务器地址。
  */
-using ProtocolHandler = std::function<void(const std::string& host, int protocol_id, const json::object& data)>;
+using ProtocolHandler = std::function<void(const std::string& host, const std::string& port, int protocol_id, const json::object& data)>;
 
 //
 // 协议处理注册与调度类
@@ -35,13 +35,13 @@ public:
 	}
 
 	// 调用对应协议号的处理函数，传入 host、protocol_id 与 data
-	void handleProtocol(const std::string& host, int protocol_id, const json::object& data) {
+	void handleProtocol(const std::string& host, const std::string& port, int protocol_id, const json::object& data) {
 		auto it = handlers_.find(protocol_id);
 		if (it != handlers_.end()) {
-			it->second(host, protocol_id, data);
+			it->second(host, port, protocol_id, data);
 		}
 		else {
-			std::cerr << "No handler found for protocol: " << protocol_id << " from host: " << host << std::endl;
+			std::cerr << "No handler found for protocol: " << protocol_id << " from host: " << host << ":" << port << std::endl;
 		}
 	}
 
@@ -49,17 +49,12 @@ private:
 	std::unordered_map<int, ProtocolHandler> handlers_;
 };
 
-//
-// 基于 boost::beast 实现的 WebSocket 客户端，封装了连接、发送数据、以及异步接收数据的逻辑。
-// 修改的地方在于：
-// - 在成功连接后保存 host 信息。
-// - 在数据解析后，调用统一的 ProtocolHandlerRegistry，并将 host 一同传递出去。
-// - 当异步读取出现错误时，会调用 on_disconnect_ 回调（由上层管理类进行重连）
-//
 class WebSocketClient {
 public:
-	WebSocketClient(asio::io_context& ioc, ProtocolHandlerRegistry& registry)
-		: ws_(ioc),
+	WebSocketClient(asio::io_context& ioc, ProtocolHandlerRegistry& registry) :
+		ws_(ioc),
+		host_(""),
+		port_(""),
 		resolver_(ioc),
 		registry_(registry) {
 	}
@@ -67,6 +62,7 @@ public:
 	// 连接到指定 host:port 的 WebSocket 服务端（同步方式）
 	void connect(const std::string& host, const std::string& port) {
 		host_ = host;
+		port_ = port;
 		auto const results = resolver_.resolve(host, port);
 		asio::connect(ws_.next_layer(), results.begin(), results.end());
 		ws_.handshake(host, "/ws");
@@ -78,7 +74,7 @@ public:
 	void sendProtocol(const json::object& data) {
 		std::string message = json::serialize(data);
 		ws_.write(asio::buffer(message));
-		std::cout << "Send protocol " << data.at("protocol_id").as_int64() << ": " << message << std::endl;
+		std::cout << "Send protocol to " << host_ << ":" << port_ << "==>" << data.at("protocol_id").as_int64() << ": " << message << std::endl;
 	}
 
 	// 断线回调，当内部异步读取出现错误时会调用该回调通知上层。
@@ -90,7 +86,7 @@ private:
 	void receiveData() {
 		ws_.async_read(buffer_, [this](beast::error_code ec, std::size_t /*bytes_transferred*/) {
 			if (ec) {
-				std::cerr << "Error receiving data from " << host_ << ": " << ec.message() << std::endl;
+				std::cerr << "Error receiving data from " << host_ << ": " << port_ << "==>" << ec.message() << std::endl;
 				if (on_disconnect_) {
 					on_disconnect_();
 				}
@@ -102,18 +98,18 @@ private:
 				boost::asio::buffers_end(buffer_.data())
 			);
 
-			std::cout << "Received data from " << host_ << ": " << received_data << std::endl;
+			std::cout << "Received data from " << host_ << ":" << port_ << "==>" << received_data << std::endl;
 			try {
 				auto parsed_json = json::parse(received_data);
 				auto& obj = parsed_json.as_object();
 				int protocol_id = obj.at("protocol_id").as_int64();
 				if (obj.at("data").is_string()) {
-					std::cout << "Simple message from " << host_ << " : " << obj.at("data").as_string() << std::endl;
+					std::cout << "Simple message from " << host_ << " : " << port_ << "==>" << obj.at("data").as_string() << std::endl;
 				}
 				else {
 					auto& data = obj.at("data").as_object();
 					// 将接收到的数据（附带服务端 host 信息）传递给统一的数据处理入口
-					registry_.handleProtocol(host_, protocol_id, data);
+					registry_.handleProtocol(host_, port_, protocol_id, data);
 				}
 			}
 			catch (const std::exception& e) {
@@ -130,6 +126,7 @@ private:
 	beast::flat_buffer buffer_;
 	ProtocolHandlerRegistry& registry_;
 	std::string host_;
+	std::string port_;
 };
 
 //

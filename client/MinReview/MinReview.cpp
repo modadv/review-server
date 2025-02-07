@@ -42,21 +42,16 @@ void runClient() {
     // 实例化协议处理注册中心，并注册协议处理回调函数
     ProtocolHandlerRegistry registry;
 
-    registry.registerHandler(1, [](const std::string& host, int protocol_id, const json::object& data) {
-        std::cout << "Handler for protocol " << protocol_id << " from " << host << std::endl;
-        std::cout << "Original host: " << data.at("host").as_string() << std::endl;
-        std::cout << "Target: " << data.at("target").as_string() << std::endl;
-
+    registry.registerHandler(1, [](const std::string& host, const std::string& port, int protocol_id, const json::object& data) {
         std::string inspector_host(data.at("host").as_string().c_str());
-        std::string port = "80";
         std::string inspector_target(data.at("target").as_string().c_str());
         inspector_target += "/report.xml";
-        fs::path downloaded_file = XmlDownloader::download(inspector_host, inspector_target, port);
+        fs::path downloaded_file = XmlDownloader::download(inspector_host, inspector_target, "80"); // 80 for nginx default port
 
         });
 
-    registry.registerHandler(2, [](const std::string& host, int protocol_id, const json::object& data) {
-        std::cout << "Handler for protocol " << protocol_id << " from " << host << " received data: " << data.at("msg").as_string() << std::endl;
+    registry.registerHandler(2, [](const std::string& host, const std::string& port, int protocol_id, const json::object& data) {
+        // test
         });
 
     // 创建 WebSocket 客户端管理器，管理与不同服务端的连接
@@ -73,20 +68,20 @@ void runClient() {
     clientManager.addConnection("127.0.0.1", "8200");
     clientManager.addConnection("127.0.0.1", "8201");
 
-    // 利用 asio::steady_timer 模拟延时发送消息，确保连接成功建立后再进行发送
-    steady_timer timer(ioc, std::chrono::seconds(2));
-    timer.async_wait([&clientManager](const boost::system::error_code& ec) {
-        if (!ec) {
-            // 构造 JSON 格式协议数据，此处仅包含 protocol_id 与 data 字段，
-            // 服务器收到后可能会结合客户端标记的 host 信息进行处理
-            object msg;
-            msg["protocol_id"] = 1;
-            msg["data"] = "Hello, server! This is a Review message.";
+    //// 利用 asio::steady_timer 模拟延时发送消息，确保连接成功建立后再进行发送
+    //steady_timer timer(ioc, std::chrono::seconds(2));
+    //timer.async_wait([&clientManager](const boost::system::error_code& ec) {
+    //    if (!ec) {
+    //        // 构造 JSON 格式协议数据，此处仅包含 protocol_id 与 data 字段，
+    //        // 服务器收到后可能会结合客户端标记的 host 信息进行处理
+    //        object msg;
+    //        msg["protocol_id"] = 1;
+    //        msg["data"] = "Hello, server! This is a Review message.";
 
-            // 通过指定 host 与 port ，选择向目标服务器发送数据
-            clientManager.sendMessage("127.0.0.1", "8194", msg);
-        }
-        });
+    //        // 通过指定 host 与 port ，选择向目标服务器发送数据
+    //        clientManager.sendMessage("127.0.0.1", "8194", msg);
+    //    }
+    //    });
 
     // 运行 io_context 的事件循环，处理所有异步任务（连接、重连、消息收发等）
     ioc.run();
