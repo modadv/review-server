@@ -155,7 +155,7 @@ public:
                                 comp_res_url = result_url + res_path;
                             }
 
-                            std::cout << "Add download task url:" << comp_res_url << std::endl;
+                            std::cout << utils::getCurrentTimeMilli() << " Add download task url:" << comp_res_url << std::endl;
                             HTTPDownloader::getInstance().addDownloadTask(comp_res_url);
                         });
                 }
@@ -180,7 +180,7 @@ public:
                         // 可选：输出下载进度（若存在 Content-Length）
                         if (content_length > 0) {
                             double progress = (static_cast<double>(bytes_downloaded) / content_length) * 100.0;
-                            std::cout << "\rDownload progress:" << progress << "%\n" << std::flush;
+                            std::cout << utils::getCurrentTimeMilli() << "Download progress:" << progress << "%\n" << std::flush;
                         }
                     }
                     body.consume(body.size());
@@ -204,7 +204,7 @@ public:
         if (shutdown_ec && shutdown_ec != beast::errc::not_connected)
             throw beast::system_error{ shutdown_ec };
 
-        std::cout << "\nDownload Successfully, save file at:" << output_file << "\n";
+        std::cout << utils::getCurrentTimeMilli() << " Download Successfully, save file at:" << output_file << "\n";
         if (review_callback) {
             review_callback(server_host, server_port, data);
         }

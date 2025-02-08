@@ -10,7 +10,7 @@
 #include <functional>
 #include <memory>
 #include <chrono>
-
+#include <Utils.h>
 namespace beast = boost::beast;
 namespace websocket = beast::websocket;
 namespace asio = boost::asio;
@@ -74,7 +74,7 @@ public:
 	void sendProtocol(const json::object& data) {
 		std::string message = json::serialize(data);
 		ws_.write(asio::buffer(message));
-		std::cout << "Send protocol to " << host_ << ":" << port_ << "==>" << data.at("protocol_id").as_int64() << ": " << message << std::endl;
+		std::cout << utils::getCurrentTimeMilli() << " Send protocol to " << host_ << ":" << port_ << "==>" << data.at("protocol_id").as_int64() << ": " << message << std::endl;
 	}
 
 	// 断线回调，当内部异步读取出现错误时会调用该回调通知上层。
@@ -98,7 +98,7 @@ private:
 				boost::asio::buffers_end(buffer_.data())
 			);
 
-			std::cout << "Received data from " << host_ << ":" << port_ << "==>" << received_data << std::endl;
+			std::cout << utils::getCurrentTimeMilli() << " Received data from " << host_ << ":" << port_ << "==>" << received_data << std::endl;
 			try {
 				auto parsed_json = json::parse(received_data);
 				auto& obj = parsed_json.as_object();

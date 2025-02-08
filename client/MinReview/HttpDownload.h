@@ -120,7 +120,7 @@ private:
         if (callback) {
             callback(url, file_path_str, success);
         }
-        std::cout << ":: :: ::Download file to " << file_path_str << " finished." << std::endl;
+        std::cout << utils::getCurrentTimeMilli() << ":: :: ::Download file to " << file_path_str << " finished." << std::endl;
 
         {
             std::lock_guard<std::mutex> lock(tasksMutex_);

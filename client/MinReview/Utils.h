@@ -18,6 +18,27 @@ namespace ip = asio::ip;
 namespace fs = std::filesystem;
 
 namespace utils {
+    // 获取当前时间字符串，格式为 "YYYY-MM-DD HH:MM:SS.mmm"
+// 如格式化失败，将返回一个空字符串
+    std::string getCurrentTimeMilli() {
+        using namespace std::chrono;
+
+        // 获取当前系统时间点
+        auto now = system_clock::now();
+        // 向下取整到秒
+        auto secs = floor<seconds>(now);
+        // 计算毫秒部分
+        auto ms = duration_cast<milliseconds>(now - secs);
+
+        try {
+            // 格式化时间字符串，毫秒部分使用固定3位数字
+            return std::format("{:%Y-%m-%d %H:%M:%S}.{:03}", secs, ms.count());
+        }
+        catch (const std::exception& e) {
+            // 如果格式化过程中出现异常，则返回空字符串，也可进一步记录日志或处理错误
+            return std::string("Error:") + e.what();
+        }
+    }
 
     // 辅助函数：拼接 base URL 与相对路径，确保只有一个斜杠相连
     std::string joinHttpUrl(const std::string& base_str, std::string path_str) {

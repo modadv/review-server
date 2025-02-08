@@ -55,13 +55,22 @@ static void runClient() {
     WebSocketClientManager::getInstance().getRegistry().registerHandler(2, onProtocol2);
 
     WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8194");
-    //WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8195");
-    //WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8196");
-    //WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8197");
-    //WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8198");
-    //WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8199");
-    //WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8200");
-    //WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8201");
+    WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8195");
+    WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8196");
+    WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8197");
+    WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8198");
+    WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8199");
+    WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8200");
+    WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8201");
+
+    WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8202");
+    WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8203");
+    WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8204");
+    WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8205");
+    WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8206");
+    WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8207");
+    WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8208");
+    WebSocketClientManager::getInstance().addConnection("127.0.0.1", "8209");
 
     WebSocketClientManager::getInstance().getIOContext().run();
 }
