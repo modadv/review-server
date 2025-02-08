@@ -23,19 +23,24 @@ namespace utils {
     std::string getCurrentTimeMilli() {
         using namespace std::chrono;
 
-        // 获取当前系统时间点
+        // 获取当前系统时间（UTC）
         auto now = system_clock::now();
-        // 向下取整到秒
-        auto secs = floor<seconds>(now);
+
+        // 将系统时间转换为本地时区下的时间点
+        zoned_time localTime{ current_zone(), now };
+
+        // 获取本地时间下的秒数（向下取整到秒）
+        auto local_tp = localTime.get_local_time();
+        auto secs = floor<seconds>(local_tp);
         // 计算毫秒部分
-        auto ms = duration_cast<milliseconds>(now - secs);
+        auto ms = duration_cast<milliseconds>(local_tp - secs);
 
         try {
             // 格式化时间字符串，毫秒部分使用固定3位数字
             return std::format("{:%Y-%m-%d %H:%M:%S}.{:03}", secs, ms.count());
         }
         catch (const std::exception& e) {
-            // 如果格式化过程中出现异常，则返回空字符串，也可进一步记录日志或处理错误
+            // 如果格式化过程中出现异常，则返回错误信息
             return std::string("Error:") + e.what();
         }
     }
