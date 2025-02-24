@@ -33,7 +33,7 @@ main(int argc, char* argv[])
     if (argc != 5)
     {
         std::cerr <<
-            "Usage: websocket-chat-multi <address> <port> <doc_root> <threads>\n" <<
+            "Usage: servermain <address> <port> <doc_root> <threads>\n" <<
             "Example:\n" <<
             "    websocket-chat-server 0.0.0.0 8080 . 5\n";
         return EXIT_FAILURE;

@@ -72,7 +72,7 @@ run(http::request<Body, http::basic_fields<Allocator>> req)
         {
             res.set(http::field::server,
                 std::string(BOOST_BEAST_VERSION_STRING) +
-                    " websocket-chat-multi");
+                    " servermain");
         }));
 
     // Accept the websocket handshake
