@@ -1,25 +1,52 @@
-cmake_minimum_required(VERSION 3.26)
-project(servermain)
+#
+# Copyright (c) 2016-2017 Vinnie Falco (vinnie dot falco at gmail dot com)
+# Copyright (c) 2024 Mohammad Nejati
+#
+# Distributed under the Boost Software License, Version 1.0. (See accompanying
+# file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+#
+# Official repository: https://github.com/boostorg/beast
+#
 
-if(WIN32)
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/bin/Debug")
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/bin/Release")
-elseif(UNIX)
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-endif()
+find_package(Boost QUIET COMPONENTS system filesystem json log url beast)
 
-add_executable(${PROJECT_NAME} main.cpp)
+add_executable(websocket-chat-multi
+    beast.hpp
+    chat_client.html
+    http_session.cpp
+    http_session.hpp
+    Jamfile
+    listener.cpp
+    listener.hpp
+    main.cpp
+    net.hpp
+    shared_state.cpp
+    shared_state.hpp
+    websocket_session.cpp
+    websocket_session.hpp)
 
-if(UNIX)
-    set_target_properties(${PROJECT_NAME} PROPERTIES
-        BUILD_WITH_INSTALL_RPATH TRUE
-        INSTALL_RPATH "$ORIGIN"
-    )
-endif()
+source_group("" FILES
+    beast.hpp
+    chat_client.html
+    http_session.cpp
+    http_session.hpp
+    Jamfile
+    listener.cpp
+    listener.hpp
+    main.cpp
+    net.hpp
+    shared_state.cpp
+    shared_state.hpp
+    websocket_session.cpp
+    websocket_session.hpp)
 
-target_include_directories(${PROJECT_NAME} PUBLIC
+
+
+target_include_directories(websocket-chat-multi PUBLIC
+    $<$<BOOL:${WIN32}>:${VCPKG_INCLUDE_DIR}>
+    ${Boost_INCLUDE_DIRS}
     ${PROJECT_SOURCE_DIR}
 )
-
-set(MAIN_EXECUTABLE ${PROJECT_NAME})
+target_link_libraries(websocket-chat-multi PRIVATE
+    ${Boost_LIBRARIES}
+)
