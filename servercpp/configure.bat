@@ -1,1 +1,0 @@
-cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="%VCPKG_ROOT%/scripts/buildsystems/vcpkg.cmake" -DCMAKE_POLICY_DEFAULT_CMP0167=NEW
