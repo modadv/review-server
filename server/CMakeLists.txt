@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.26)
-project(reviewserver LANGUAGES CXX)
+project(server LANGUAGES CXX)
 if(POLICY CMP0167)
   cmake_policy(SET CMP0167 NEW)
 endif()

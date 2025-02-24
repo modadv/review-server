@@ -10,7 +10,7 @@
 
 find_package(Boost QUIET COMPONENTS system filesystem json log url beast)
 
-add_executable(websocket-chat-multi
+add_executable(servermain
     beast.hpp
     chat_client.html
     http_session.cpp
@@ -42,11 +42,11 @@ source_group("" FILES
 
 
 
-target_include_directories(websocket-chat-multi PUBLIC
+target_include_directories(servermain PUBLIC
     $<$<BOOL:${WIN32}>:${VCPKG_INCLUDE_DIR}>
     ${Boost_INCLUDE_DIRS}
     ${PROJECT_SOURCE_DIR}
 )
-target_link_libraries(websocket-chat-multi PRIVATE
+target_link_libraries(servermain PRIVATE
     ${Boost_LIBRARIES}
 )
